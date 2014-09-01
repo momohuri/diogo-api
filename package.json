@@ -19,6 +19,8 @@
   "dependencies": {
     "cloudinary": "^1.0.12",
     "hapi": "^6.6.0",
-    "mongoose": "^3.8.15"
+    "mocha": "^1.21.4",
+    "mongoose": "^3.8.15",
+    "should": "^4.0.4"
   }
 }

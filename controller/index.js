@@ -55,10 +55,8 @@ exports.uploadPicture = function (request, reply) {
         var picture = new Picture(payload.picture);
         User.findOne({uuid: payload.uuid}, function (err, user) {
             if (err) throw err;
-            debugger
             picture.userId = user._id;
             cloudinary.uploader.upload(payload.picture.base64, function (result) {
-                debugger
                 picture.url = result.url;
                 picture.save(function (err, pic) {
                     if (err) return reply({success: false, err: err.err});
@@ -79,4 +77,35 @@ exports.getUserIdByUuid = function (request, reply) {
 
         return reply(doc);
     });
+};
+
+function findPics(pictureIds, userLocation, loc, limit){
+    Picture.find( { _id: { $nin: pictureIds }}).where('location.' + loc).equals(userLocation[loc]).sort({date: -1}).limit(limit).exec(function (err, docs) {
+        if (err) throw err;
+        return reply(docs);
+    });
+};
+
+exports.getPicturesVote = function (request, reply) {
+    var user = request.pre.user,
+        location = request.payload.location,
+        picturesToExclude = user.picsVoted.concat(user.picsSent),
+        args = ['county','state','country_code'],
+        pics = [],
+        i = 0,
+        limit = 5;
+        while (pics.length < 5 && i < 3) {
+            pics.concat(findPics(picturesToExclude, location, args[i], limit - pics.length));
+            picturesToExclude.concat(
+                pics.map(function (elem) {
+                return elem._id;
+                })
+            );
+        }
+        user.picsSent.push(
+            pics.map(function (elem) {
+                return elem._id;
+            })
+        );
+        reply(pics);
 };

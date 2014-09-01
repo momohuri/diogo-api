@@ -9,13 +9,14 @@ var PictureSchema = new Schema({
         road: { type: String },
         neighbourhood: { type: String },
         city: { type: String },
-        county: { type: String },
-        state: { type: String },
+        county: { type: String, index:true },
+        state: { type: String, index:true },
         postcode: { type: String },
-        country: { type: String }
+        country: { type: String },
+        country_code: { type: String, index:true }
     },
     url: { type: String },
-    date: { type: Date, default: Date.now },
+    date: { type: Date, default: Date.now, index: true },
     userId: { type:Schema.Types.ObjectId, ref: 'User' },
     voteIds: { type:[{ type: String, ref: 'Vote' }] }
 });

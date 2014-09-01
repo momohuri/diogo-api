@@ -37,13 +37,21 @@ server.route([
         method: 'POST',
         path: '/uploadPicture',
         config: {
-           // pre: [{ method: Controller.getUserIdByUuid, assign: 'user' }],
+            // pre: [{ method: Controller.getUserIdByUuid, assign: 'user' }],
             handler: Controller.uploadPicture,
             payload: {
                 maxBytes: 1048576 * 10, // 10MB
                 output: 'stream',
                 parse: true
             }
+        }
+    },
+    {
+        method: 'POST',
+        path: '/getPictureVote',
+        config: {
+            pre: [{ method: Controller.getUserIdByUuid, assign: 'user' }],
+            handler: Controller.getPicturesVote
         }
     }
 ]);

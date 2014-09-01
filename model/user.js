@@ -10,6 +10,8 @@ var UserSchema = new Schema({
     uuid: {type: [String]},
     date: { type: Date, default: Date.now },
     voteIds: { type:[{ type: String, ref: 'Vote' }] },
+    picsVoted: { type:[{ type: Schema.Types.ObjectId, index: true, ref: 'Picture' }] },
+    picsSent: { type:[{ type: Schema.Types.ObjectId, index: true, ref: 'Picture' }] },
     pictureIds: { type:[{ type: Schema.Types.ObjectId, ref: 'Picture' }] }
 });
 
