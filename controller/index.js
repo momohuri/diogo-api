@@ -9,19 +9,19 @@ var User = require('../model/user'),
 exports.login = function (request, reply) {
     User.findOne({ username: request.payload.username }, function (err, userMatch) {
         if (err) reply(err, null);
-        if (!userMatch) return reply({success:false, err:"UserName doesn't exist"});
-        User.comparePassword(userMatch.password,request.payload.password, function (err, isMatch) {
-            if(err) throw err;
-            if (!isMatch) return reply({success:false, err:"Password does't match"});
+        if (!userMatch) return reply({success: false, err: "UserName doesn't exist"});
+        User.comparePassword(userMatch.password, request.payload.password, function (err, isMatch) {
+            if (err) throw err;
+            if (!isMatch) return reply({success: false, err: "Password does't match"});
             if (userMatch.uuid.indexOf(request.payload.uuid) == "-1") {
                 userMatch.uuid.push(request.payload.uuid);
                 userMatch.save(function (err, userUpdate) {
-                    if(err) throw err;
-                    if (!userUpdate) return reply({success:false, err:"error"});
-                    return reply({id: userUpdate.id, success:true, msg:"New device"});
+                    if (err) throw err;
+                    if (!userUpdate) return reply({success: false, err: "error"});
+                    return reply({id: userUpdate.id, success: true, msg: "New device"});
                 });
             }
-            return reply({id: userMatch.id, success:true});
+            return reply({id: userMatch.id, success: true});
         });
     });
 };
@@ -72,7 +72,7 @@ exports.uploadPicture = function (request, reply) {
 
 exports.getUserIdByUuid = function (request, reply) {
     User.findOne({uuid: request.payload.uuid}, function (err, doc) {
-       if (err) throw err;
+        if (err) throw err;
 
         return reply(doc);
     });
@@ -87,51 +87,22 @@ function findPics(pictureIds, userLocation, loc, limit, reply) {
 };
 
 exports.getPicturesVote = function (request, reply) {
-/*    var user = request.pre.user,
-        location = request.payload.location,
-        picturesToExclude = user.picsVoted.concat(user.picsSent),
-        args = ['county','state','country_code'],
-        pics = [],
-        i = 0,
-        limit = 5;
-        while (pics.length < 5 && i < 3) {
-            pics.concat(findPics(picturesToExclude, location, args[i], limit - pics.length));
-            picturesToExclude.concat(
-                pics.map(function (elem) {
-                return elem._id;
-                })
-            );
-        }
-        user.picsSent.push(
-            pics.map(function (elem) {
-                return elem._id;
-            })
-        );
-        reply(pics);*/
-
-
 
     var user = request.pre.user,
         location = request.payload.location,
         picturesToExclude = [],
-        args = ['county','state','country_code'],
+        args = ['county', 'state', 'country_code'],
         pics = [],
         picsTemp = [],
         i = 0,
         limit = 5;
 
     picturesToExclude = user.picsVoted.concat(user.picsSent);
-    while (pics.length < 5 && i < 3) {
+    getPics();
+    function getPics() {
         findPics(picturesToExclude, location, args[i], limit - pics.length, function (docs) {
-            console.log('coucoucoucoucouc docs');
-            console.log(docs);
-            console.log('coucoucoucoucouc picsTemp');
             picsTemp = docs;
-            console.log(picsTemp);
-
-            pics.concat(picsTemp);
-            console.log('coucoucoucoucouc pics');
-            console.log(pics);
+            pics = pics.concat(picsTemp);
 
             picturesToExclude.concat(
                 pics.map(function (elem) {
@@ -139,39 +110,43 @@ exports.getPicturesVote = function (request, reply) {
                 })
             );
 
+            if (pics.length < 5 || i < 3) return reply(pics);
+            else {
+                i += 1;
+                getPics()
+            }
         });
-        i += 1;
     }
 
     /*user.picsSent.push(
-        pics.map(function (elem) {
-            return elem._id;
-        })
-    );*/
-    reply(pics);
+     pics.map(function (elem) {
+     return elem._id;
+     })
+     );*/
+
 };
 
 /*
-var user = request.pre.user,
-    location = request.payload.location,
-    picturesToExclude = user.picsVoted.concat(user.picsSent),
-    args = ['county','state','country_code'],
-    pics = [],
-    i = 0,
-    limit = 5;
-while (pics.length < 5 && i < 3) {
-    findPics(picturesToExclude, location, args[i], limit - pics.length, function (docs){
-        pics.concat(docs);
-        picturesToExclude.concat(
-            pics.map(function (elem) {
-                return elem._id;
-            })
-        );
-    });
-}
-user.picsSent.push(
-    pics.map(function (elem) {
-        return elem._id;
-    })
-);
-reply(pics);*/
+ var user = request.pre.user,
+ location = request.payload.location,
+ picturesToExclude = user.picsVoted.concat(user.picsSent),
+ args = ['county','state','country_code'],
+ pics = [],
+ i = 0,
+ limit = 5;
+ while (pics.length < 5 && i < 3) {
+ findPics(picturesToExclude, location, args[i], limit - pics.length, function (docs){
+ pics.concat(docs);
+ picturesToExclude.concat(
+ pics.map(function (elem) {
+ return elem._id;
+ })
+ );
+ });
+ }
+ user.picsSent.push(
+ pics.map(function (elem) {
+ return elem._id;
+ })
+ );
+ reply(pics);*/

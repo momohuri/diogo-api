@@ -4,6 +4,7 @@
 mongoose = require("mongoose");
 var Picture = require('../model/picture');
 var Controller = require("../controller/");
+var should= require('should')
 mongoose.connect('mongodb://adrien:vinches@kahana.mongohq.com:10082/diogotest');
 var db = mongoose.connection;
 
@@ -43,9 +44,7 @@ describe('Controller', function(){
                     }
                 }
             };
-            console.log(request);
             Controller.getPicturesVote(request, function(res){
-                console.log('coucou');
                 res.should.have.length(5);
                 done();
             });
