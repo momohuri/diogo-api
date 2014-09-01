@@ -9,28 +9,36 @@ var UserSchema = new Schema({
     points: {type: Number, default: 0 },
     uuid: {type: [String]},
     date: { type: Date, default: Date.now },
-    voteIds: { type:[{ type: String, ref: 'Vote' }] },
-    picsVoted: { type:[{ type: Schema.Types.ObjectId, index: true, ref: 'Picture' }] },
-    picsSent: { type:[{ type: Schema.Types.ObjectId, index: true, ref: 'Picture' }] },
-    pictureIds: { type:[{ type: Schema.Types.ObjectId, ref: 'Picture' }] }
+    voteIds: { type: [
+        { type: String, ref: 'Vote' }
+    ] },
+    picsVoted: { type: [
+        { type: Schema.Types.ObjectId, index: true, ref: 'Picture' }
+    ] },
+    picsSent: { type: [
+        { type: Schema.Types.ObjectId, index: true, ref: 'Picture' }
+    ] },
+    pictureIds: { type: [
+        { type: Schema.Types.ObjectId, ref: 'Picture' }
+    ] }
 });
 
-UserSchema.pre('save', function(next) {
+UserSchema.pre('save', function (next) {
     var user = this;
     // only hash the password if it has been modified (or is new)
     if (!user.isModified('password')) return next();
     var shasum = crypto.createHash('sha1');
     shasum.update(user.password);
     user.password = shasum.digest('hex');
-    next ();
+    next();
 });
 
 UserSchema.statics = {
-    comparePassword: function(password,passwordCandidate, next) {
+    comparePassword: function (password, passwordCandidate, next) {
         var shasum = crypto.createHash('sha1');
         shasum.update(passwordCandidate);
-        candidatePasswordHash = shasum.digest('hex');
-        return next(null, (candidatePasswordHash === password) ? true : false);
+        var candidatePasswordHash = shasum.digest('hex');
+        return next(null, (candidatePasswordHash === password));
     }
 };
 

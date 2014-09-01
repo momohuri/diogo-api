@@ -4,13 +4,14 @@ cloudinary = require('cloudinary');
 var Controller = require('./controller');
 var User = require('./model/user');
 // Create a server with a host and port
-var server = new Hapi.Server('0.0.0.0', 8000, {cors: true});
+var PORT = process.env.PORT || 8000;
+var server = new Hapi.Server('0.0.0.0', PORT, {cors: true});
 
 // Connection mongoose
 mongoose.connect('mongodb://adrien:vinches@kahana.mongohq.com:10022/diogo');
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
-db.once('open', function callback () {
+db.once('open', function callback() {
     console.log('connection successfull');
 });
 
@@ -50,7 +51,9 @@ server.route([
         method: 'POST',
         path: '/getPictureVote',
         config: {
-            pre: [{ method: Controller.getUserIdByUuid, assign: 'user' }],
+            pre: [
+                { method: Controller.getUserIdByUuid, assign: 'user' }
+            ],
             handler: Controller.getPicturesVote
         }
     }
