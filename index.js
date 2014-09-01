@@ -8,7 +8,12 @@ var PORT = process.env.PORT || 8000;
 var server = new Hapi.Server('0.0.0.0', PORT, {cors: true});
 
 // Connection mongoose
-mongoose.connect('mongodb://adrien:vinches@kahana.mongohq.com:10022/diogo');
+//test
+mongoose.connect('mongodb://adrien:vinches@kahana.mongohq.com:10082/diogotest');
+//dev
+//
+// mongoose.connect('mongodb://adrien:vinches@kahana.mongohq.com:10022/diogo');
+
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 db.once('open', function callback() {
@@ -49,7 +54,7 @@ server.route([
     },
     {
         method: 'POST',
-        path: '/getPictureVote',
+        path: '/getPicturesVote',
         config: {
             pre: [
                 { method: Controller.getUserIdByUuid, assign: 'user' }

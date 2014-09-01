@@ -1,8 +1,7 @@
 /**
  * Created by Adrien on 8/24/2014.
  */
-var Hapi = require('hapi'),
-    User = require('../model/user'),
+var User = require('../model/user'),
     Vote = require('../model/vote'),
     Picture = require('../model/picture');
 
@@ -79,15 +78,16 @@ exports.getUserIdByUuid = function (request, reply) {
     });
 };
 
-function findPics(pictureIds, userLocation, loc, limit){
-    Picture.find( { _id: { $nin: pictureIds }}).where('location.' + loc).equals(userLocation[loc]).sort({date: -1}).limit(limit).exec(function (err, docs) {
+function findPics(pictureIds, userLocation, loc, limit, reply) {
+    Picture.find({ _id: { $nin: pictureIds }}).where('location.' + loc).equals(userLocation[loc]).sort({date: -1}).limit(limit).exec(function (err, docs) {
         if (err) throw err;
+        console.log(docs);
         return reply(docs);
     });
 };
 
 exports.getPicturesVote = function (request, reply) {
-    var user = request.pre.user,
+/*    var user = request.pre.user,
         location = request.payload.location,
         picturesToExclude = user.picsVoted.concat(user.picsSent),
         args = ['county','state','country_code'],
@@ -107,5 +107,71 @@ exports.getPicturesVote = function (request, reply) {
                 return elem._id;
             })
         );
-        reply(pics);
+        reply(pics);*/
+
+
+
+    var user = request.pre.user,
+        location = request.payload.location,
+        picturesToExclude = [],
+        args = ['county','state','country_code'],
+        pics = [],
+        picsTemp = [],
+        i = 0,
+        limit = 5;
+
+    picturesToExclude = user.picsVoted.concat(user.picsSent);
+    while (pics.length < 5 && i < 3) {
+        findPics(picturesToExclude, location, args[i], limit - pics.length, function (docs) {
+            console.log('coucoucoucoucouc docs');
+            console.log(docs);
+            console.log('coucoucoucoucouc picsTemp');
+            picsTemp = docs;
+            console.log(picsTemp);
+
+            pics.concat(picsTemp);
+            console.log('coucoucoucoucouc pics');
+            console.log(pics);
+
+            picturesToExclude.concat(
+                pics.map(function (elem) {
+                    return elem._id;
+                })
+            );
+
+        });
+        i += 1;
+    }
+
+    /*user.picsSent.push(
+        pics.map(function (elem) {
+            return elem._id;
+        })
+    );*/
+    reply(pics);
 };
+
+/*
+var user = request.pre.user,
+    location = request.payload.location,
+    picturesToExclude = user.picsVoted.concat(user.picsSent),
+    args = ['county','state','country_code'],
+    pics = [],
+    i = 0,
+    limit = 5;
+while (pics.length < 5 && i < 3) {
+    findPics(picturesToExclude, location, args[i], limit - pics.length, function (docs){
+        pics.concat(docs);
+        picturesToExclude.concat(
+            pics.map(function (elem) {
+                return elem._id;
+            })
+        );
+    });
+}
+user.picsSent.push(
+    pics.map(function (elem) {
+        return elem._id;
+    })
+);
+reply(pics);*/
