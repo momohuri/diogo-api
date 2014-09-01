@@ -1,10 +1,11 @@
 {
   "name": "diogo-api",
-  "version": "0.0.0",
+  "version": "0.0.0-1",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
   },
   "repository": {
     "type": "git",
@@ -22,5 +23,9 @@
     "mocha": "^1.21.4",
     "mongoose": "^3.8.15",
     "should": "^4.0.4"
+  },
+  "subdomain": "diogo-api",
+  "engines": {
+    "node": "0.10.x"
   }
 }
