@@ -73,7 +73,6 @@ exports.uploadPicture = function (request, reply) {
 exports.getUserIdByUuid = function (request, reply) {
     User.findOne({uuid: request.payload.uuid}, function (err, doc) {
         if (err) throw err;
-
         return reply(doc);
     });
 };
@@ -81,42 +80,47 @@ exports.getUserIdByUuid = function (request, reply) {
 function findPics(pictureIds, userLocation, loc, limit, reply) {
     Picture.find({ _id: { $nin: pictureIds }}).where('location.' + loc).equals(userLocation[loc]).sort({date: -1}).limit(limit).exec(function (err, docs) {
         if (err) throw err;
-        console.log(docs);
         return reply(docs);
     });
 };
 
 exports.getPicturesVote = function (request, reply) {
-
     var user = request.pre.user,
         location = request.payload.location,
         picturesToExclude = [],
         args = ['county', 'state', 'country_code'],
         pics = [],
-        picsTemp = [],
         i = 0,
         limit = 5;
 
-    picturesToExclude = user.picsVoted.concat(user.picsSent);
-    getPics();
+    picturesToExclude = user.picsVoted.concat(user.picsSent, user.pictureIds);
     function getPics() {
         findPics(picturesToExclude, location, args[i], limit - pics.length, function (docs) {
-            picsTemp = docs;
-            pics = pics.concat(picsTemp);
+            pics = pics.concat(docs);
+            /*console.log("before");
+            console.log(picturesToExclude);*/
 
-            picturesToExclude.concat(
-                pics.map(function (elem) {
-                    return elem._id;
-                })
-            );
+           var picsTemp = pics.map(function (elem) {
+                return elem._id;
+            });
 
-            if (pics.length < 5 || i < 3) return reply(pics);
+            picturesToExclude = picturesToExclude.concat(picsTemp);
+            console.log('picsTemps');
+            console.log(picsTemp);
+            console.log("after");
+            console.log(picturesToExclude);
+            picsTemp = [];
+
+            if (pics.length > 4 || i > 2) return reply(pics);
             else {
                 i += 1;
                 getPics()
             }
         });
-    }
+    };
+
+    getPics();
+
 
     /*user.picsSent.push(
      pics.map(function (elem) {
@@ -125,28 +129,3 @@ exports.getPicturesVote = function (request, reply) {
      );*/
 
 };
-
-/*
- var user = request.pre.user,
- location = request.payload.location,
- picturesToExclude = user.picsVoted.concat(user.picsSent),
- args = ['county','state','country_code'],
- pics = [],
- i = 0,
- limit = 5;
- while (pics.length < 5 && i < 3) {
- findPics(picturesToExclude, location, args[i], limit - pics.length, function (docs){
- pics.concat(docs);
- picturesToExclude.concat(
- pics.map(function (elem) {
- return elem._id;
- })
- );
- });
- }
- user.picsSent.push(
- pics.map(function (elem) {
- return elem._id;
- })
- );
- reply(pics);*/
