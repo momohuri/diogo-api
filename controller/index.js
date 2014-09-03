@@ -12,8 +12,9 @@ exports.login = function (request, reply) {
         if (!userMatch) return reply({success: false, err: "UserName doesn't exist"});
         User.comparePassword(userMatch.password, request.payload.password, function (err, isMatch) {
             if (err) throw err;
-            if (!isMatch) return reply({success: false, err: "Password does't match"});
-            if (userMatch.uuid.indexOf(request.payload.uuid) == "-1") {
+            if (!isMatch) return reply({success: false, err: "Password doesn't match"});
+            if (userMatch.uuid.indexOf(request.payload.uuid) !== "-1") return reply({id: userMatch.id, success: true});
+            else {
                 userMatch.uuid.push(request.payload.uuid);
                 userMatch.save(function (err, userUpdate) {
                     if (err) throw err;
@@ -21,7 +22,6 @@ exports.login = function (request, reply) {
                     return reply({id: userUpdate.id, success: true, msg: "New device"});
                 });
             }
-            return reply({id: userMatch.id, success: true});
         });
     });
 };
@@ -82,7 +82,7 @@ function findPics(pictureIds, userLocation, loc, limit, reply) {
         if (err) throw err;
         return reply(docs);
     });
-};
+}
 
 exports.getPicturesVote = function (request, reply) {
     var user = request.pre.user,
@@ -97,13 +97,9 @@ exports.getPicturesVote = function (request, reply) {
     function getPics() {
         findPics(picturesToExclude, location, args[i], limit - pics.length, function (docs) {
             pics = pics.concat(docs);
-            /*console.log("before");
-            console.log(picturesToExclude);*/
-
-           var picsTemp = pics.map(function (elem) {
+            var picsTemp = pics.map(function (elem) {
                 return elem._id;
             });
-
             picturesToExclude = picturesToExclude.concat(picsTemp);
             console.log('picsTemps');
             console.log(picsTemp);
@@ -117,15 +113,7 @@ exports.getPicturesVote = function (request, reply) {
                 getPics()
             }
         });
-    };
+    }
 
     getPics();
-
-
-    /*user.picsSent.push(
-     pics.map(function (elem) {
-     return elem._id;
-     })
-     );*/
-
 };
