@@ -5,7 +5,7 @@ var User = require('../model/user'),
     Vote = require('../model/vote'),
     Picture = require('../model/picture');
 
-
+//todo make sure that the payload have : uuid, username and password
 exports.login = function (request, reply) {
     User.findOne({ username: request.payload.username }, function (err, userMatch) {
         if (err) reply(err, null);
