@@ -121,23 +121,17 @@ exports.getPicturesVote = function (request, reply) {
 };
 
 exports.vote = function (request, reply) {
-    picId = request.payload.vote.pictureId;
-
-    Picture.findById(picId, function(err, pictureaaaa) {
-        if (err) return reply({success: false, err: err.err});
-        console.log(pictureaaaa);
-    });
-        var user = request.pre.user;
+    var picId = request.payload.vote.pictureId;
+    var user = request.pre.user;
     var vote = new Vote(request.payload.vote);
     vote.userId = user._id;
     vote.pictureId = new ObjectId(picId);
     vote.save(function (err, voteSaved) {
         if (err) return reply({success: false, err: err.err});
         user.voteIds.push(voteSaved);
-        Picture.findById(vote.pictureId, function(err, picture) {
+        Picture.findByIdAndUpdate(vote.pictureId, { $push: { voteIds: picId }}, function(err, picture) {
             if (err) return reply({success: false, err: err.err});
             user.picsVoted.push(picture);
-            picture.voteIds.push(voteSaved);
             user.save(function (err, doc){
                 if (err) return reply({success: false, err: err.err});
                 return reply({success: true });
