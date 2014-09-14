@@ -15,8 +15,8 @@ var VoteSchema = new Schema({
         country: { type: String }
     },
     date: { type: Date, default: Date.now },
-    userIds: { type:{ type: String, ref: 'User' } },
-    pictureIds: { type:{ type: String, ref: 'Picture' } }
+    userId: { type:{ type: Schema.Types.ObjectId, ref: 'User' } },
+    pictureId: { type:{ type: Schema.Types.ObjectId, ref: 'Picture' } }
 
 });
 

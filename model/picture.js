@@ -18,7 +18,7 @@ var PictureSchema = new Schema({
     url: { type: String },
     date: { type: Date, default: Date.now, index: true },
     userId: { type:Schema.Types.ObjectId, ref: 'User' },
-    voteIds: { type:[{ type: String, ref: 'Vote' }] }
+    voteIds: { type:[{ type: Schema.Types.ObjectId, ref: 'Vote' }] }
 });
 
 module.exports = mongoose.model('Picture', PictureSchema);
