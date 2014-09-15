@@ -111,8 +111,14 @@ exports.getPicturesVote = function (request, reply) {
             picsTemp = [];
 
             if (pics.length > 4 || i > 2) {
-                user.picsSent.push(pics);
-                return reply(pics);
+                var picsSentToPush = pics.map(function (elem) {
+                    return elem._id;
+                });
+                user.picsSent.push(picsSentToPush);
+                user.save(function (err, doc){
+                    if (err) throw err;
+                    return reply(pics);
+                });
             }
             else {
                 i += 1;
