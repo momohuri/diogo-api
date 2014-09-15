@@ -104,17 +104,12 @@ exports.getPicturesVote = function (request, reply) {
                 return elem._id;
             });
             picturesToExclude = picturesToExclude.concat(picsTemp);
-            console.log('picsTemps');
-            console.log(picsTemp);
-            console.log("after");
-            console.log(picturesToExclude);
             picsTemp = [];
 
             if (pics.length > 4 || i > 2) {
-                var picsSentToPush = pics.map(function (elem) {
-                    return elem._id;
+                pics.forEach(function (elem) {
+                    user.picsSent.push(new ObjectId(elem._id));
                 });
-                user.picsSent.push(picsSentToPush);
                 user.save(function (err, doc){
                     if (err) throw err;
                     return reply(pics);
@@ -142,6 +137,7 @@ exports.vote = function (request, reply) {
         Picture.findByIdAndUpdate(vote.pictureId, { $push: { voteIds: picId }}, function(err, picture) {
             if (err) return reply({success: false, err: err.err});
             user.picsVoted.push(picture);
+            user.picsSent.splice(user.picsSent.indexOf(new ObjectId(picture._id)), 1);
             user.save(function (err, doc){
                 if (err) return reply({success: false, err: err.err});
                 return reply({success: true });
@@ -152,9 +148,9 @@ exports.vote = function (request, reply) {
 
 function mapVote() {
     var score = 0,
-        d = new Date(),
+        d = new ISODate(),
         dMinus6 = d.setHours(d.getHours() - 6),
-        dMinus12 = d.setHours(d.getHours() - 12);
+        dMinus12 = d.setHours(d.getHours() - 6);
 
     if (this.voteType) {
         if (this.date > dMinus6) {
@@ -162,7 +158,7 @@ function mapVote() {
         } else if (this.date > dMinus12){
             score = 1;
         } else {
-            score = 5;
+            score = 0.5;
         }
     } else {
         if (this.date > dMinus6) {
@@ -170,7 +166,7 @@ function mapVote() {
         } else if (this.date > dMinus12){
             score = -1;
         } else {
-            score = -5;
+            score = -0.5;
         }
     }
     emit(this.pictureId, score);
