@@ -4,10 +4,11 @@
 var User = require('../model/user'),
     Vote = require('../model/vote'),
     Picture = require('../model/picture'),
+    TrendingPicture = require('../model/trendingPicture'),
     ObjectId = require('mongoose').Types.ObjectId;
 
 
-//todo make sure that the payload have : uuid, username and password
+//todo make sure that the payload has : uuid, username and password
 exports.login = function (request, reply) {
     User.findOne({ username: request.payload.username }, function (err, userMatch) {
         if (err) reply(err, null);
@@ -95,8 +96,8 @@ exports.getPicturesVote = function (request, reply) {
         i = 0,
         limit = 5;
 
-    picturesToExclude = user.picsVoted.concat(user.picsSent, user.pictureIds);
     function getPics() {
+        picturesToExclude = user.picsVoted.concat(user.picsSent, user.pictureIds);
         findPics(picturesToExclude, location, args[i], limit - pics.length, function (docs) {
             pics = pics.concat(docs);
             var picsTemp = pics.map(function (elem) {
@@ -112,7 +113,7 @@ exports.getPicturesVote = function (request, reply) {
             if (pics.length > 4 || i > 2) return reply(pics);
             else {
                 i += 1;
-                getPics()
+                getPics();
             }
         });
     }
@@ -138,4 +139,50 @@ exports.vote = function (request, reply) {
             });
         });
     });
+};
+
+function mapVote() {
+    var score = 0,
+        d = new Date(),
+        dMinus6 = d.setHours(d.getHours() - 6),
+        dMinus12 = d.setHours(d.getHours() - 12);
+
+    if (this.voteType) {
+        if (this.date > dMinus6) {
+            score = 2;
+        } else if (this.date > dMinus12){
+            score = 1;
+        } else {
+            score = 5;
+        }
+    } else {
+        if (this.date > dMinus6) {
+            score = -2;
+        } else if (this.date > dMinus12){
+            score = -1;
+        } else {
+            score = -5;
+        }
+    }
+    emit(this.pictureId, score);
+};
+
+function reduceVote(pictureId, voteScores) {
+    return Array.sum(voteScores);
+};
+
+exports.getTrendingPicture = function (request, reply) {
+    // Sent {uuid:uuid,location:location}
+
+
+    var utils = {};
+    utils.map = mapVote;
+    utils.reduce = reduceVote;
+
+    Vote.mapReduce(utils, function (err, results) {
+        return reply(results);
+
+    });
+
+
 };

@@ -71,6 +71,16 @@ server.route([
             ],
             handler: Controller.vote
         }
+    },
+    {
+        method: 'POST',
+        path: '/getTrendingPicture',
+        config: {
+            pre: [
+                { method: Controller.getUserIdByUuid, assign: 'user' }
+            ],
+            handler: Controller.getTrendingPicture
+        }
     }
 ]);
 
