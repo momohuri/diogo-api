@@ -110,7 +110,10 @@ exports.getPicturesVote = function (request, reply) {
             console.log(picturesToExclude);
             picsTemp = [];
 
-            if (pics.length > 4 || i > 2) return reply(pics);
+            if (pics.length > 4 || i > 2) {
+                user.picsSent.push(pics);
+                return reply(pics);
+            }
             else {
                 i += 1;
                 getPics();
