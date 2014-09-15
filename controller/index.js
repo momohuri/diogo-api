@@ -96,8 +96,8 @@ exports.getPicturesVote = function (request, reply) {
         i = 0,
         limit = 5;
 
+    picturesToExclude = user.picsVoted.concat(user.picsSent, user.pictureIds);
     function getPics() {
-        picturesToExclude = user.picsVoted.concat(user.picsSent, user.pictureIds);
         findPics(picturesToExclude, location, args[i], limit - pics.length, function (docs) {
             pics = pics.concat(docs);
             var picsTemp = pics.map(function (elem) {
