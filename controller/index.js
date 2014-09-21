@@ -138,6 +138,7 @@ exports.vote = function (request, reply) {
             if (err) return reply({success: false, err: err.err});
             user.picsVoted.push(picture);
             user.picsSent.splice(user.picsSent.indexOf(new ObjectId(picture._id)), 1);
+            user.points.$inc();
             user.save(function (err, doc){
                 if (err) return reply({success: false, err: err.err});
                 return reply({success: true });
