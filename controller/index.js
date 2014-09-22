@@ -74,7 +74,7 @@ exports.uploadPicture = function (request, reply) {
 };
 
 exports.getUserIdByUuid = function (request, reply) {
-    User.findOne({uuid: request.payload.uuid}, function (err, doc) {
+    User.findOne({uuid: request.query.uuid}, function (err, doc) {
         if (err) throw err;
         return reply(doc);
     });
