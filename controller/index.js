@@ -5,6 +5,7 @@ var User = require('../model/user'),
     Vote = require('../model/vote'),
     Picture = require('../model/picture'),
     TrendingPicture = require('../model/trendingPicture'),
+    TempTrendingPicture = require('../model/tempTrendingPictures'),
     ObjectId = require('mongoose').Types.ObjectId;
 
 
@@ -138,7 +139,7 @@ exports.vote = function (request, reply) {
             if (err) return reply({success: false, err: err.err});
             user.picsVoted.push(picture);
             user.picsSent.splice(user.picsSent.indexOf(new ObjectId(picture._id)), 1);
-            user.points++;
+            user.points.$inc();
             user.save(function (err, doc){
                 if (err) return reply({success: false, err: err.err});
                 return reply({success: true });
@@ -170,25 +171,86 @@ function mapVote() {
             score = -0.5;
         }
     }
-    emit(this.pictureId, score);
+    emit(this.pictureId, {score: score, location: this.location});
 };
 
-function reduceVote(pictureId, voteScores) {
-    return Array.sum(voteScores);
+function reduceVote(pictureId, obj) {
+    //return {score:Array.sum(obj.score),location:obj[0].location};
+    var finalScore = obj.reduce(function(sum, item){
+        return sum.score + item.score;
+    });
+    return {score:finalScore, location:obj[0].location};
 };
+
+function mapReduceVote(loc, value) {
+    var utils = {};
+    utils.query = {};
+    //utils.query["location."+loc] = value;
+    utils.map = mapVote;
+    utils.reduce = reduceVote;
+    utils.out = {merge: 'tempTrendingPicture'};
+
+    var reduceMapCallbackQuery = {};
+    reduceMapCallbackQuery["value.location."+loc] = value;
+
+    Vote.mapReduce(utils, function (err, model, stats) {
+        if (err) throw err;
+        model.find(reduceMapCallbackQuery).sort({value: -1}).limit(50).exec(function (err, doc) {
+            if (err) throw err;
+            var tempTrendingPicsToSave = [];
+            doc.forEach(function (item){
+                var tempTrendingPicture = new TempTrendingPicture({
+                    location: item.value.location,
+                    pictureId: item._id,
+                    score: item.value.score
+                });
+                tempTrendingPicture.populate();
+                tempTrendingPicsToSave.push(tempTrendingPicture);
+            });
+
+            console.log(tempTrendingPicsToSave);
+        });
+    });
+};
+
 
 exports.getTrendingPicture = function (request, reply) {
     // Sent {uuid:uuid,location:location}
+    var location = request.payload.location,
+        results = [];
+
+    for (var loc in location) {
+        if (location.hasOwnProperty(loc)) {
+            mapReduceVote(loc, location[loc]);
+        }
+    }
+    /*TrendingPicture.findOne({location: location}, function (err, doc) {
+        if (err) throw err;
+        if (doc) {
+            return reply(doc);
+        } else {
+            for (var loc in location) {
+                if( location.hasOwnProperty( loc ) ) {
+                    results = mapReduceVote(loc,location[loc]);
+                }
+            }
+            return reply([]);
+        }
+    });*/
 
 
-    var utils = {};
-    utils.map = mapVote;
-    utils.reduce = reduceVote;
+};
 
-    Vote.mapReduce(utils, function (err, results) {
-        return reply(results);
+exports.getTopTrendingPicture = function (request, reply) {
+    // Sent {uuid:uuid,location:location}
+    var location = request.payload.location,
+        results = [];
 
-    });
-
-
+    for (var loc in location) {
+        if (location.hasOwnProperty(loc)) {
+            var results = mapReduceVote(loc,location[loc],50);
+            console.log(results);
+            reply(results);
+        }
+    }
 };
