@@ -80,6 +80,12 @@ exports.getUserIdByUuid = function (request, reply) {
     });
 };
 
+
+exports.getUserPoints = function(request,reply){
+   reply(request.pre.user.points);
+};
+
+
 function findPics(pictureIds, userLocation, loc, limit, reply) {
     Picture.find({ _id: { $nin: pictureIds }}).where('location.' + loc).equals(userLocation[loc]).sort({date: -1}).limit(limit).exec(function (err, docs) {
         if (err) throw err;
