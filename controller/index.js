@@ -5,7 +5,6 @@ var User = require('../model/user'),
     Vote = require('../model/vote'),
     Picture = require('../model/picture'),
     TrendingPicture = require('../model/trendingPicture'),
-    TempTrendingPicture = require('../model/tempTrendingPictures'),
     ObjectId = require('mongoose').Types.ObjectId;
 
 
@@ -182,33 +181,50 @@ function reduceVote(pictureId, obj) {
     return {score:finalScore, location:obj[0].location};
 };
 
+function populateTrendingPicture(trendingPics, location) {
+    var trendingPicture = new TrendingPicture({
+        location: location,
+        pictures: trendingPics
+    });
+
+    trendingPicture.save(function (err,doc) {
+        if (err) throw err;
+    });
+}
+
 function mapReduceVote(loc, value) {
     var utils = {};
     utils.query = {};
     //utils.query["location."+loc] = value;
     utils.map = mapVote;
     utils.reduce = reduceVote;
-    utils.out = {merge: 'tempTrendingPicture'};
+    utils.out = {merge: 'temp'};
 
+    var location = value;
     var reduceMapCallbackQuery = {};
-    reduceMapCallbackQuery["value.location."+loc] = value;
+    //reduceMapCallbackQuery["value.location."+loc] = value;
 
     Vote.mapReduce(utils, function (err, model, stats) {
         if (err) throw err;
-        model.find(reduceMapCallbackQuery).sort({value: -1}).limit(50).exec(function (err, doc) {
+        model.find(reduceMapCallbackQuery).sort({value: -1}).limit(50).exec(function (err, docs) {
             if (err) throw err;
             var tempTrendingPicsToSave = [];
-            doc.forEach(function (item){
-                var tempTrendingPicture = new TempTrendingPicture({
-                    location: item.value.location,
-                    pictureId: item._id,
-                    score: item.value.score
+            var i = 1;
+            docs.forEach(function (item, index){
+                var picture = {};
+
+                Picture.findOne({_id: item._id},function (err, doc) {
+                    if (err) throw err;
+                    picture = doc;
+                    picture._doc.score = item.value.score;
+                    tempTrendingPicsToSave.push(picture);
+
+                    if(docs.length == i) { populateTrendingPicture(tempTrendingPicsToSave, location); }
+                    i++;
                 });
-                tempTrendingPicture.populate();
-                tempTrendingPicsToSave.push(tempTrendingPicture);
             });
 
-            console.log(tempTrendingPicsToSave);
+
         });
     });
 };
@@ -218,10 +234,13 @@ exports.getTrendingPicture = function (request, reply) {
     // Sent {uuid:uuid,location:location}
     var location = request.payload.location,
         results = [];
+    console.log('county , ' + location.county);
+    mapReduceVote('county', location.county);
 
     for (var loc in location) {
         if (location.hasOwnProperty(loc)) {
-            mapReduceVote(loc, location[loc]);
+            //console.log(loc + ' / ' + location[loc]);
+            //mapReduceVote(loc, location[loc]);
         }
     }
     /*TrendingPicture.findOne({location: location}, function (err, doc) {
