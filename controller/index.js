@@ -181,7 +181,7 @@ function reduceVote(pictureId, obj) {
     return {score:finalScore, location:obj[0].location};
 };
 
-function populateTrendingPicture(trendingPics, location) {
+function populateTrendingPicture(trendingPics, location, next) {
     var trendingPicture = new TrendingPicture({
         location: location,
         pictures: trendingPics
@@ -189,20 +189,21 @@ function populateTrendingPicture(trendingPics, location) {
 
     trendingPicture.save(function (err,doc) {
         if (err) throw err;
+        next();
     });
 }
 
 function mapReduceVote(loc, value) {
     var utils = {};
     utils.query = {};
-    //utils.query["location."+loc] = value;
+    utils.query["location."+loc] = value;
     utils.map = mapVote;
     utils.reduce = reduceVote;
     utils.out = {merge: 'temp'};
 
     var location = value;
     var reduceMapCallbackQuery = {};
-    //reduceMapCallbackQuery["value.location."+loc] = value;
+    reduceMapCallbackQuery["value.location."+loc] = value;
 
     Vote.mapReduce(utils, function (err, model, stats) {
         if (err) throw err;
@@ -219,12 +220,16 @@ function mapReduceVote(loc, value) {
                     picture._doc.score = item.value.score;
                     tempTrendingPicsToSave.push(picture);
 
-                    if(docs.length == i) { populateTrendingPicture(tempTrendingPicsToSave, location); }
+                    if(docs.length == i) {
+                        populateTrendingPicture(tempTrendingPicsToSave, location, function(){
+                            model.remove(reduceMapCallbackQuery, function (err) {
+                                if (err) throw err;
+                            });
+                        });
+                    }
                     i++;
                 });
             });
-
-
         });
     });
 };
