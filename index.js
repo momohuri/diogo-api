@@ -81,6 +81,16 @@ server.route([
             ],
             handler: Controller.getTrendingPicture
         }
+    },
+    {
+        method: 'GET',
+        path: '/getUserPoints',
+        config: {
+            pre: [
+                { method: Controller.getUserIdByUuid, assign: 'user' }
+            ],
+            handler: Controller.getUserPoints
+        }
     }
 ]);
 
