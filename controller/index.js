@@ -193,9 +193,12 @@ function populateTrendingPicture(trendingPics, location, next) {
         pictures: trendingPics
     });
 
-    trendingPicture.save(function (err, doc) {
+    TrendingPicture.remove({location: location}, function (err) {
         if (err) throw err;
-        next();
+        trendingPicture.save(function (err,doc) {
+            if (err) throw err;
+            next();
+        });
     });
 }
 
@@ -272,7 +275,8 @@ exports.getTrendingPicture = function (request, reply) {
 
 exports.getTopTrendingPicture = function (request, reply) {
     // Sent {uuid:uuid,location:location}
-    var location = request.payload.location;
+    var location = request.payload.location,
+        results = [];
 
     for (var loc in location) {
         if (location.hasOwnProperty(loc)) {
