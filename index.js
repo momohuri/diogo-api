@@ -74,7 +74,7 @@ server.route([
     },
     {
         method: 'POST',
-        path: '/getTrendingPicture',
+        path: '/getTopOnePicture',
         config: {
             pre: [
                 { method: Controller.getUserIdByUuid, assign: 'user' }
