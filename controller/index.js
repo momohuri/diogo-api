@@ -223,7 +223,7 @@ function mapReduceVote(loc, value) {
                 Picture.findOne({_id: item._id}, function (err, doc) {
                     if (err) throw err;
                     picture = doc;
-                    picture._doc.score =  item.value.score;
+                    picture._doc.score = item.value.score;
                     picture._doc.rank = ++rank;
                     tempTrendingPicsToSave.push(picture);
                     if (docs.length == i++) {
@@ -272,8 +272,7 @@ exports.getTrendingPicture = function (request, reply) {
 
 exports.getTopTrendingPicture = function (request, reply) {
     // Sent {uuid:uuid,location:location}
-    var location = request.payload.location,
-        results = [];
+    var location = request.payload.location;
 
     for (var loc in location) {
         if (location.hasOwnProperty(loc)) {
