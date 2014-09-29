@@ -251,7 +251,7 @@ function mapReduceVote(locationType, location) {
 };
 
 
-exports.getTrendingPicture = function (request, reply) {
+exports.getTopOnePicture = function (request, reply) {
     // Sent {uuid:uuid,location:location}
     var location = request.payload.location,
         results = {},
@@ -263,7 +263,13 @@ exports.getTrendingPicture = function (request, reply) {
     order.forEach(function(elem, key, array) {
         var type = elem;
         var loc = JSON.parse(JSON.stringify(location));
-        TrendingPicture.findOne({location: location, locationType: type}, function (err, doc) {
+        var query = {};
+        for(var key in location){
+            query['location.'+key] = location[key];
+        }
+        query.locationType = type;
+
+        TrendingPicture.findOne(query, function (err, doc) {
             if (err) throw err;
             if (doc) {
                 results[type] = {
@@ -288,16 +294,40 @@ exports.getTrendingPicture = function (request, reply) {
     });
 };
 
-exports.getTopTrendingPicture = function (request, reply) {
-    // Sent {uuid:uuid,location:location}
+exports.getTrendingPicture = function (request, reply) {
+    // Sent {uuid:uuid,location:location,type:type}
     var location = request.payload.location,
-        results = [];
+        type = request.payload.type,
+        loc = {},
+        query = {},
+        d = new Date(),
+        dMinus6 = d.setHours(d.getHours() - 6);
 
-    for (var loc in location) {
-        if (location.hasOwnProperty(loc)) {
-            results = mapReduceVote(loc, location[loc], 50);
-            console.log(results);
-            reply(results);
+        if (type == 'county'){
+            loc = location;
+        } else if (type == 'state') {
+            delete location['county'];
+            loc = location;
+        } else if (type == 'country_code') {
+            delete location['county'];
+            delete location['state'];
+            loc = location;
         }
-    }
+        for (var key in loc) {
+            query['location.' + key] = loc[key];
+        }
+        query.locationType = type;
+
+        TrendingPicture.findOne(query, function (err, doc) {
+            if (err) throw err;
+            if (doc) {
+                reply(doc);
+                if (doc.date < dMinus6) {
+                    mapReduceVote(type, location);
+                }
+            } else {
+                reply({});
+                mapReduceVote(type, location);
+            }
+        });
 };

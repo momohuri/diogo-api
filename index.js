@@ -74,12 +74,22 @@ server.route([
     },
     {
         method: 'POST',
-        path: '/getTopOnePicture',
+        path: '/getTrendingPicture',
         config: {
             pre: [
                 { method: Controller.getUserIdByUuid, assign: 'user' }
             ],
             handler: Controller.getTrendingPicture
+        }
+    },
+    {
+        method: 'POST',
+        path: '/getTopOnePicture',
+        config: {
+            pre: [
+                { method: Controller.getUserIdByUuid, assign: 'user' }
+            ],
+            handler: Controller.getTopOnePicture
         }
     },
     {

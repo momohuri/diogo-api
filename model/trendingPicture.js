@@ -7,7 +7,7 @@ var TrendingPictureSchema = new Schema({
     location: {
         county: { type: String, index:true },
         state: { type: String, index:true },
-        country: { type: String, index:true }
+        country_code: { type: String, index:true }
     },
     locationType: {type: String, index:true },
     date: { type: Date, default: Date.now },
