@@ -81,8 +81,8 @@ exports.getUserIdByUuid = function (request, reply) {
 };
 
 
-exports.getUserPoints = function(request,reply){
-   reply(request.pre.user.points);
+exports.getUserPoints = function (request, reply) {
+    reply(request.pre.user.points);
 };
 
 
@@ -116,7 +116,7 @@ exports.getPicturesVote = function (request, reply) {
                 pics.forEach(function (elem) {
                     user.picsSent.push(new ObjectId(elem._id));
                 });
-                user.save(function (err, doc){
+                user.save(function (err, doc) {
                     if (err) throw err;
                     return reply(pics);
                 });
@@ -140,12 +140,12 @@ exports.vote = function (request, reply) {
     vote.save(function (err, voteSaved) {
         if (err) return reply({success: false, err: err.err});
         user.voteIds.push(voteSaved);
-        Picture.findByIdAndUpdate(vote.pictureId, { $push: { voteIds: picId }}, function(err, picture) {
+        Picture.findByIdAndUpdate(vote.pictureId, { $push: { voteIds: picId }}, function (err, picture) {
             if (err) return reply({success: false, err: err.err});
             user.picsVoted.push(picture);
             user.picsSent.splice(user.picsSent.indexOf(new ObjectId(picture._id)), 1);
             user.points.$inc();
-            user.save(function (err, doc){
+            user.save(function (err, doc) {
                 if (err) return reply({success: false, err: err.err});
                 return reply({success: true });
             });
@@ -162,7 +162,7 @@ function mapVote() {
     if (this.voteType) {
         if (this.date > dMinus6) {
             score = 2;
-        } else if (this.date > dMinus12){
+        } else if (this.date > dMinus12) {
             score = 1;
         } else {
             score = 0.5;
@@ -170,7 +170,7 @@ function mapVote() {
     } else {
         if (this.date > dMinus6) {
             score = -2;
-        } else if (this.date > dMinus12){
+        } else if (this.date > dMinus12) {
             score = -1;
         } else {
             score = -0.5;
@@ -181,10 +181,10 @@ function mapVote() {
 
 function reduceVote(pictureId, obj) {
     //return {score:Array.sum(obj.score),location:obj[0].location};
-    var finalScore = obj.reduce(function(sum, item){
+    var finalScore = obj.reduce(function (sum, item) {
         return sum.score + item.score;
     });
-    return {score:finalScore, location:obj[0].location};
+    return {score: finalScore, location: obj[0].location};
 };
 
 function populateTrendingPicture(trendingPics, location, next) {
@@ -193,7 +193,7 @@ function populateTrendingPicture(trendingPics, location, next) {
         pictures: trendingPics
     });
 
-    trendingPicture.save(function (err,doc) {
+    trendingPicture.save(function (err, doc) {
         if (err) throw err;
         next();
     });
@@ -202,14 +202,14 @@ function populateTrendingPicture(trendingPics, location, next) {
 function mapReduceVote(loc, value) {
     var utils = {};
     utils.query = {};
-    utils.query["location."+loc] = value;
+    utils.query["location." + loc] = value;
     utils.map = mapVote;
     utils.reduce = reduceVote;
     utils.out = {merge: 'temp'};
 
     var location = value;
     var reduceMapCallbackQuery = {};
-    reduceMapCallbackQuery["value.location."+loc] = value;
+    reduceMapCallbackQuery["value.location." + loc] = value;
 
     Vote.mapReduce(utils, function (err, model, stats) {
         if (err) throw err;
@@ -217,23 +217,22 @@ function mapReduceVote(loc, value) {
             if (err) throw err;
             var tempTrendingPicsToSave = [];
             var i = 1;
-            docs.forEach(function (item, index){
+            docs.forEach(function (item, index) {
                 var picture = {};
-
-                Picture.findOne({_id: item._id},function (err, doc) {
+                var rank = index;
+                Picture.findOne({_id: item._id}, function (err, doc) {
                     if (err) throw err;
                     picture = doc;
-                    picture._doc.score = item.value.score;
+                    picture._doc.score =  item.value.score;
+                    picture._doc.rank = ++rank;
                     tempTrendingPicsToSave.push(picture);
-
-                    if(docs.length == i) {
-                        populateTrendingPicture(tempTrendingPicsToSave, location, function(){
+                    if (docs.length == i++) {
+                        populateTrendingPicture(tempTrendingPicsToSave, location, function () {
                             model.remove(reduceMapCallbackQuery, function (err) {
                                 if (err) throw err;
                             });
                         });
                     }
-                    i++;
                 });
             });
         });
@@ -255,18 +254,18 @@ exports.getTrendingPicture = function (request, reply) {
         }
     }
     /*TrendingPicture.findOne({location: location}, function (err, doc) {
-        if (err) throw err;
-        if (doc) {
-            return reply(doc);
-        } else {
-            for (var loc in location) {
-                if( location.hasOwnProperty( loc ) ) {
-                    results = mapReduceVote(loc,location[loc]);
-                }
-            }
-            return reply([]);
-        }
-    });*/
+     if (err) throw err;
+     if (doc) {
+     return reply(doc);
+     } else {
+     for (var loc in location) {
+     if( location.hasOwnProperty( loc ) ) {
+     results = mapReduceVote(loc,location[loc]);
+     }
+     }
+     return reply([]);
+     }
+     });*/
 
 
 };
@@ -278,7 +277,7 @@ exports.getTopTrendingPicture = function (request, reply) {
 
     for (var loc in location) {
         if (location.hasOwnProperty(loc)) {
-            var results = mapReduceVote(loc,location[loc],50);
+            var results = mapReduceVote(loc, location[loc], 50);
             console.log(results);
             reply(results);
         }
