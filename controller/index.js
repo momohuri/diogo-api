@@ -187,13 +187,17 @@ function reduceVote(pictureId, obj) {
     return {score: finalScore, location: obj[0].location};
 };
 
-function populateTrendingPicture(trendingPics, location, next) {
+function populateTrendingPicture(trendingPics, location, locationType, next) {
+    var trendingPicsSorted = trendingPics.sort(function (a, b){
+        return a.rank - b.rank;
+    });
     var trendingPicture = new TrendingPicture({
         location: location,
-        pictures: trendingPics
+        locationType: locationType,
+        pictures: trendingPicsSorted
     });
 
-    TrendingPicture.remove({location: location}, function (err) {
+    TrendingPicture.remove({location: location, locationType: locationType}, function (err) {
         if (err) throw err;
         trendingPicture.save(function (err,doc) {
             if (err) throw err;
@@ -202,17 +206,21 @@ function populateTrendingPicture(trendingPics, location, next) {
     });
 }
 
-function mapReduceVote(loc, value) {
+function mapReduceVote(locationType, location) {
     var utils = {};
+    var reduceMapCallbackQuery = {};
+
     utils.query = {};
-    utils.query["location." + loc] = value;
+    for(var key in location){
+        utils.query['location.'+key] = location[key];
+        reduceMapCallbackQuery["value.location."+key] = location[key];
+    }
+
     utils.map = mapVote;
     utils.reduce = reduceVote;
     utils.out = {merge: 'temp'};
 
-    var location = value;
-    var reduceMapCallbackQuery = {};
-    reduceMapCallbackQuery["value.location." + loc] = value;
+
 
     Vote.mapReduce(utils, function (err, model, stats) {
         if (err) throw err;
@@ -230,7 +238,7 @@ function mapReduceVote(loc, value) {
                     picture._doc.rank = ++rank;
                     tempTrendingPicsToSave.push(picture);
                     if (docs.length == i++) {
-                        populateTrendingPicture(tempTrendingPicsToSave, location, function () {
+                        populateTrendingPicture(tempTrendingPicsToSave, location, locationType, function () {
                             model.remove(reduceMapCallbackQuery, function (err) {
                                 if (err) throw err;
                             });
@@ -246,31 +254,38 @@ function mapReduceVote(loc, value) {
 exports.getTrendingPicture = function (request, reply) {
     // Sent {uuid:uuid,location:location}
     var location = request.payload.location,
-        results = [];
-    console.log('county , ' + location.county);
-    mapReduceVote('county', location.county);
-
-    for (var loc in location) {
-        if (location.hasOwnProperty(loc)) {
-            //console.log(loc + ' / ' + location[loc]);
-            //mapReduceVote(loc, location[loc]);
-        }
-    }
-    /*TrendingPicture.findOne({location: location}, function (err, doc) {
-     if (err) throw err;
-     if (doc) {
-     return reply(doc);
-     } else {
-     for (var loc in location) {
-     if( location.hasOwnProperty( loc ) ) {
-     results = mapReduceVote(loc,location[loc]);
-     }
-     }
-     return reply([]);
-     }
-     });*/
-
-
+        results = {},
+        i = 0,
+        d = new Date(),
+        dMinus6 = d.setHours(d.getHours() - 6);
+    //mapReduceVote('state', location.state);
+    var order = ['county', 'state', 'country_code'];
+    order.forEach(function(elem, key, array) {
+        var type = elem;
+        var loc = JSON.parse(JSON.stringify(location));
+        TrendingPicture.findOne({location: location, locationType: type}, function (err, doc) {
+            if (err) throw err;
+            if (doc) {
+                results[type] = {
+                    name: loc[type],
+                    picture: doc.pictures[0].url,
+                    score: doc.pictures[0].score
+                };
+                if (array.length == ++i) {
+                    reply(results);
+                }
+                if (doc.date < dMinus6) {
+                    mapReduceVote(type, loc);
+                }
+            } else {
+                if (array.length == ++i) {
+                    reply(results);
+                }
+                mapReduceVote(type, loc);
+            }
+        });
+        delete location[type];
+    });
 };
 
 exports.getTopTrendingPicture = function (request, reply) {
@@ -280,7 +295,7 @@ exports.getTopTrendingPicture = function (request, reply) {
 
     for (var loc in location) {
         if (location.hasOwnProperty(loc)) {
-            var results = mapReduceVote(loc, location[loc], 50);
+            results = mapReduceVote(loc, location[loc], 50);
             console.log(results);
             reply(results);
         }
