@@ -10,13 +10,13 @@ var User = require('../model/user'),
 
 //todo make sure that the payload has : uuid, username and password
 exports.login = function (request, reply) {
-    User.findOne({ username: request.payload.username }, function (err, userMatch) {
+    User.findOne({username: request.payload.username}, function (err, userMatch) {
         if (err) reply(err, null);
         if (!userMatch) return reply({success: false, err: "UserName doesn't exist"});
         User.comparePassword(userMatch.password, request.payload.password, function (err, isMatch) {
             if (err) throw err;
             if (!isMatch) return reply({success: false, err: "Password doesn't match"});
-            if (userMatch.uuid.indexOf(request.payload.uuid) !== "-1") return reply({id: userMatch.id, success: true});
+            if (userMatch.uuid.indexOf(request.payload.uuid) !== -1) return reply({id: userMatch.id, success: true});
             else {
                 userMatch.uuid.push(request.payload.uuid);
                 userMatch.save(function (err, userUpdate) {
@@ -44,6 +44,7 @@ exports.upVote = function (request, reply) {
 
 };
 
+//todo seems to be breaking when no title with the picture
 exports.uploadPicture = function (request, reply) {
     var user = request.pre.user
     var stream = '';
@@ -87,7 +88,8 @@ exports.getUserPoints = function (request, reply) {
 
 
 function findPics(pictureIds, userLocation, loc, limit, reply) {
-    Picture.find({ _id: { $nin: pictureIds }}).where('location.' + loc).equals(userLocation[loc]).sort({date: -1}).limit(limit).exec(function (err, docs) {
+    //todo populate userid is cool but there is to much info  (should remove password...)
+    Picture.find({_id: {$nin: pictureIds}}).populate('userId').where('location.' + loc).equals(userLocation[loc]).sort({date: -1}).limit(limit).exec(function (err, docs) {
         if (err) throw err;
         return reply(docs);
     });
@@ -97,7 +99,7 @@ exports.getPicturesVote = function (request, reply) {
     var user = request.pre.user,
         location = request.payload.location,
         picturesToExclude = [],
-        args = ['county', 'state', 'country_code'],
+        args = ['county', 'state', 'country'],
         pics = [],
         i = 0,
         limit = 5;
@@ -110,11 +112,11 @@ exports.getPicturesVote = function (request, reply) {
                 return elem._id;
             });
             picturesToExclude = picturesToExclude.concat(picsTemp);
-            picsTemp = [];
 
             if (pics.length > 4 || i > 2) {
                 pics.forEach(function (elem) {
-                    user.picsSent.push(new ObjectId(elem._id));
+                    //todo remove this one
+//                    user.picsSent.push(new ObjectId(elem._id));
                 });
                 user.save(function (err, doc) {
                     if (err) throw err;
@@ -131,6 +133,8 @@ exports.getPicturesVote = function (request, reply) {
     getPics();
 };
 
+
+//todo people can change there vote (make sure to delete old one, and don't add points)
 exports.vote = function (request, reply) {
     var picId = request.payload.vote.pictureId;
     var user = request.pre.user;
@@ -140,19 +144,20 @@ exports.vote = function (request, reply) {
     vote.save(function (err, voteSaved) {
         if (err) return reply({success: false, err: err.err});
         user.voteIds.push(voteSaved);
-        Picture.findByIdAndUpdate(vote.pictureId, { $push: { voteIds: picId }}, function (err, picture) {
+        Picture.findByIdAndUpdate(vote.pictureId, {$push: {voteIds: picId}}, function (err, picture) {
             if (err) return reply({success: false, err: err.err});
             user.picsVoted.push(picture);
             user.picsSent.splice(user.picsSent.indexOf(new ObjectId(picture._id)), 1);
-            user.points.$inc();
+            ++user.points;
             user.save(function (err, doc) {
                 if (err) return reply({success: false, err: err.err});
-                return reply({success: true });
+                return reply({success: true});
             });
         });
     });
 };
 
+//todo should put 0 if thereis no vote
 function mapVote() {
     var score = 0,
         d = new ISODate(),
@@ -177,18 +182,19 @@ function mapVote() {
         }
     }
     emit(this.pictureId, {score: score, location: this.location});
-};
+}
 
 function reduceVote(pictureId, obj) {
     //return {score:Array.sum(obj.score),location:obj[0].location};
     var finalScore = obj.reduce(function (sum, item) {
         return sum.score + item.score;
     });
+    if (isNaN(finalScore)) finalScore = 0;
     return {score: finalScore, location: obj[0].location};
-};
+}
 
 function populateTrendingPicture(trendingPics, location, locationType, next) {
-    var trendingPicsSorted = trendingPics.sort(function (a, b){
+    var trendingPicsSorted = trendingPics.sort(function (a, b) {
         return a.rank - b.rank;
     });
     var trendingPicture = new TrendingPicture({
@@ -199,7 +205,7 @@ function populateTrendingPicture(trendingPics, location, locationType, next) {
 
     TrendingPicture.remove({location: location, locationType: locationType}, function (err) {
         if (err) throw err;
-        trendingPicture.save(function (err,doc) {
+        trendingPicture.save(function (err, doc) {
             if (err) throw err;
             next();
         });
@@ -211,15 +217,14 @@ function mapReduceVote(locationType, location) {
     var reduceMapCallbackQuery = {};
 
     utils.query = {};
-    for(var key in location){
-        utils.query['location.'+key] = location[key];
-        reduceMapCallbackQuery["value.location."+key] = location[key];
+    for (var key in location) {
+        utils.query['location.' + key] = location[key];
+        reduceMapCallbackQuery["value.location." + key] = location[key];
     }
 
     utils.map = mapVote;
     utils.reduce = reduceVote;
     utils.out = {merge: 'temp'};
-
 
 
     Vote.mapReduce(utils, function (err, model, stats) {
@@ -228,15 +233,18 @@ function mapReduceVote(locationType, location) {
             if (err) throw err;
             var tempTrendingPicsToSave = [];
             var i = 1;
-            docs.forEach(function (item, index) {
+            var rank = 0;
+            docs.forEach(function (item) {
                 var picture = {};
-                var rank = index;
-                Picture.findOne({_id: item._id}, function (err, doc) {
+                Picture.findOne({_id: item._id}).populate('userId').exec(function (err, doc) {
                     if (err) throw err;
-                    picture = doc;
-                    picture._doc.score = item.value.score;
-                    picture._doc.rank = ++rank;
-                    tempTrendingPicsToSave.push(picture);
+                    if (doc) { //bug happend here were picture got deleted
+                        picture = doc;
+                        picture._doc.userId = picture.get('userId').toJSON();
+                        picture._doc.score = item.value.score;
+                        picture._doc.rank = ++rank;
+                        tempTrendingPicsToSave.push(picture);
+                    }
                     if (docs.length == i++) {
                         populateTrendingPicture(tempTrendingPicsToSave, location, locationType, function () {
                             model.remove(reduceMapCallbackQuery, function (err) {
@@ -248,7 +256,7 @@ function mapReduceVote(locationType, location) {
             });
         });
     });
-};
+}
 
 
 exports.getTopOnePicture = function (request, reply) {
@@ -259,19 +267,22 @@ exports.getTopOnePicture = function (request, reply) {
         d = new Date(),
         dMinus6 = d.setHours(d.getHours() - 6);
     //mapReduceVote('state', location.state);
-    var order = ['county', 'state', 'country_code'];
-    order.forEach(function(elem, key, array) {
+    var order = ['county', 'state', 'country'];
+    order.forEach(function (elem, key, array) {
         var type = elem;
-        var loc = JSON.parse(JSON.stringify(location));
+        var loc = JSON.parse(JSON.stringify(location));  //todo is there a reason?
         var query = {};
-        for(var key in location){
-            query['location.'+key] = location[key];
+        for (var key in location) {
+            query['location.' + key] = location[key];
         }
         query.locationType = type;
 
         TrendingPicture.findOne(query, function (err, doc) {
             if (err) throw err;
             if (doc) {
+                doc.pictures = doc.pictures.sort(function (a, b) {
+                    return a.rank - b.rank;
+                });
                 results[type] = {
                     name: loc[type],
                     picture: doc.pictures[0].url,
@@ -284,6 +295,12 @@ exports.getTopOnePicture = function (request, reply) {
                     mapReduceVote(type, loc);
                 }
             } else {
+                //if no picture avaible,
+                // todo host the picture on our side.
+                results[type] = {
+                    name: loc[type],
+                    picture: "http://cdn.meme.am/instances/500x/57529499.jpg"
+                };
                 if (array.length == ++i) {
                     reply(results);
                 }
@@ -294,6 +311,8 @@ exports.getTopOnePicture = function (request, reply) {
     });
 };
 
+
+//todo for this one I need to know if the current user have voted or not for the picture (picture.voted=true or false on payload)
 exports.getTrendingPicture = function (request, reply) {
     // Sent {uuid:uuid,location:location,type:type}
     var location = request.payload.location,
@@ -301,33 +320,34 @@ exports.getTrendingPicture = function (request, reply) {
         loc = {},
         query = {},
         d = new Date(),
-        dMinus6 = d.setHours(d.getHours() - 6);
+        dMinus6 = d.setMinutes(d.getMinutes() - 5);         //changed to 5 minutes
 
-        if (type == 'county'){
-            loc = location;
-        } else if (type == 'state') {
-            delete location['county'];
-            loc = location;
-        } else if (type == 'country_code') {
-            delete location['county'];
-            delete location['state'];
-            loc = location;
-        }
-        for (var key in loc) {
-            query['location.' + key] = loc[key];
-        }
-        query.locationType = type;
+    if (type == 'county') {
+        loc = location;
+    } else if (type == 'state') {
+        delete location['county'];
+        loc = location;
+    } else if (type == 'country') {
+        delete location['county'];
+        delete location['state'];
+        loc = location;
+    }
+    for (var key in loc) {
+        query['location.' + key] = loc[key];
+    }
+    query.locationType = type;
 
-        TrendingPicture.findOne(query, function (err, doc) {
-            if (err) throw err;
-            if (doc) {
-                reply(doc);
-                if (doc.date < dMinus6) {
-                    mapReduceVote(type, location);
-                }
-            } else {
-                reply({});
+    //todo .populate('pictures.userId') find a way of doing that
+    TrendingPicture.findOne(query).exec(function (err, doc) {
+        if (err) throw err;
+        if (doc) {
+            reply(doc);
+            if (doc.date < dMinus6) {
                 mapReduceVote(type, location);
             }
-        });
+        } else {
+            reply({});
+            mapReduceVote(type, location);
+        }
+    });
 };
