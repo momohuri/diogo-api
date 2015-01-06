@@ -46,7 +46,7 @@ exports.upVote = function (request, reply) {
 
 //todo seems to be breaking when no title with the picture
 exports.uploadPicture = function (request, reply) {
-    var user = request.pre.user
+    var user = request.pre.user;
     var stream = '';
     request.payload.on('data', function (chunk) {
         stream += chunk;
@@ -115,7 +115,7 @@ exports.getPicturesVote = function (request, reply) {
 
             if (pics.length > 4 || i > 2) {
                 pics.forEach(function (elem) {
-                    //todo remove this one
+                    //todo remove this comment
 //                    user.picsSent.push(new ObjectId(elem._id));
                 });
                 user.save(function (err, doc) {
@@ -194,13 +194,11 @@ function reduceVote(pictureId, obj) {
 }
 
 function populateTrendingPicture(trendingPics, location, locationType, next) {
-    var trendingPicsSorted = trendingPics.sort(function (a, b) {
-        return a.rank - b.rank;
-    });
+
     var trendingPicture = new TrendingPicture({
         location: location,
         locationType: locationType,
-        pictures: trendingPicsSorted
+        pictures: trendingPics
     });
 
     TrendingPicture.remove({location: location, locationType: locationType}, function (err) {
@@ -219,17 +217,18 @@ function mapReduceVote(locationType, location) {
     utils.query = {};
     for (var key in location) {
         utils.query['location.' + key] = location[key];
+        utils.query['pictureLocation.' + key] = location[key];
         reduceMapCallbackQuery["value.location." + key] = location[key];
     }
 
     utils.map = mapVote;
     utils.reduce = reduceVote;
     utils.out = {merge: 'temp'};
-
-
+    //todo les scores sont calcules en fonction de la provenance des votes, on devrais aussi etre sur de la provenance des photos !
+    // pour etre la meilleur photo de san francisco il faut qu elle soit prise a sf
     Vote.mapReduce(utils, function (err, model, stats) {
         if (err) throw err;
-        model.find(reduceMapCallbackQuery).sort({value: -1}).limit(50).exec(function (err, docs) {
+        model.find(reduceMapCallbackQuery).sort({'value.score': -1}).limit(50).exec(function (err, docs) {
             if (err) throw err;
             var tempTrendingPicsToSave = [];
             var i = 1;
@@ -242,10 +241,15 @@ function mapReduceVote(locationType, location) {
                         picture = doc;
                         picture._doc.userId = picture.get('userId').toJSON();
                         picture._doc.score = item.value.score;
-                        picture._doc.rank = ++rank;
                         tempTrendingPicsToSave.push(picture);
                     }
                     if (docs.length == i++) {
+                        tempTrendingPicsToSave = tempTrendingPicsToSave.sort(function (a, b) {
+                            return b._doc.score - a._doc.score
+                        });
+                        tempTrendingPicsToSave.map(function (a, i) {
+                            a.rank = i + 1;
+                        });
                         populateTrendingPicture(tempTrendingPicsToSave, location, locationType, function () {
                             model.remove(reduceMapCallbackQuery, function (err) {
                                 if (err) throw err;
@@ -312,7 +316,7 @@ exports.getTopOnePicture = function (request, reply) {
 };
 
 
-//todo for this one I need to know if the current user have voted or not for the picture (picture.voted=true or false on payload)
+//todo Client need to know if the current user have voted or not for the picture (picture.voted=true or false on payload)
 exports.getTrendingPicture = function (request, reply) {
     // Sent {uuid:uuid,location:location,type:type}
     var location = request.payload.location,
@@ -337,7 +341,6 @@ exports.getTrendingPicture = function (request, reply) {
     }
     query.locationType = type;
 
-    //todo .populate('pictures.userId') find a way of doing that
     TrendingPicture.findOne(query).exec(function (err, doc) {
         if (err) throw err;
         if (doc) {
