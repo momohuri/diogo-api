@@ -12,7 +12,7 @@ var server = new Hapi.Server('0.0.0.0', PORT, {cors: true});
 //mongoose.connect('mongodb://adrien:vinches@kahana.mongohq.com:10082/diogotest');
 //dev
 //
- mongoose.connect('mongodb://adrien:vinches@kahana.mongohq.com:10022/diogo');
+mongoose.connect('mongodb://adrien:vinches@kahana.mongohq.com:10022/diogo');
 
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
@@ -41,6 +41,26 @@ server.route([
     },
     {
         method: 'POST',
+        path: '/signOut',
+        config: {
+            pre: [
+                {method: Controller.getUserIdByUuid, assign: 'user'}
+            ],
+            handler: Controller.signOut
+        }
+    },
+    {
+        method: 'POST',
+        path: '/schoolSelected',
+        config: {
+            pre: [
+                {method: Controller.getUserIdByUuid, assign: 'user'}
+            ],
+            handler: Controller.schoolSelected
+        }
+    },
+    {
+        method: 'POST',
         path: '/uploadPicture',
         config: {
             // pre: [{ method: Controller.getUserIdByUuid, assign: 'user' }],
@@ -57,7 +77,7 @@ server.route([
         path: '/getPicturesVote',
         config: {
             pre: [
-                { method: Controller.getUserIdByUuid, assign: 'user' }
+                {method: Controller.getUserIdByUuid, assign: 'user'}
             ],
             handler: Controller.getPicturesVote
         }
@@ -67,7 +87,7 @@ server.route([
         path: '/vote',
         config: {
             pre: [
-                { method: Controller.getUserIdByUuid, assign: 'user' }
+                {method: Controller.getUserIdByUuid, assign: 'user'}
             ],
             handler: Controller.vote
         }
@@ -77,9 +97,19 @@ server.route([
         path: '/getTrendingPicture',
         config: {
             pre: [
-                { method: Controller.getUserIdByUuid, assign: 'user' }
+                {method: Controller.getUserIdByUuid, assign: 'user'}
             ],
             handler: Controller.getTrendingPicture
+        }
+    },
+    {
+        method: 'GET',
+        path: '/getUserInfo',
+        config: {
+            pre: [
+                {method: Controller.getUserIdByUuid, assign: 'user'}
+            ],
+            handler: Controller.getUserInfo
         }
     },
     {
@@ -87,19 +117,9 @@ server.route([
         path: '/getTopOnePicture',
         config: {
             pre: [
-                { method: Controller.getUserIdByUuid, assign: 'user' }
+                {method: Controller.getUserIdByUuid, assign: 'user'}
             ],
             handler: Controller.getTopOnePicture
-        }
-    },
-    {
-        method: 'GET',
-        path: '/getUserPoints',
-        config: {
-            pre: [
-                { method: Controller.getUserIdByUuid, assign: 'user' }
-            ],
-            handler: Controller.getUserPoints
         }
     }
 ]);

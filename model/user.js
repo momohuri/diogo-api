@@ -4,23 +4,32 @@
 var Schema = mongoose.Schema,
     crypto = require('crypto');
 var UserSchema = new Schema({
-    username: { type: String, required: true, index: { unique: true } },
-    password: { type: String, required: true },
-    points: {type: Number, default: 0 },
+    username: {type: String, required: true, index: {unique: true}},
+    password: {type: String, required: true},
+    points: {type: Number, default: 0},
+    institution: {type: String},
     uuid: {type: [String]},
-    date: { type: Date, default: Date.now },
-    voteIds: { type: [
-        { type: Schema.Types.ObjectId, ref: 'Vote' }
-    ] },
-    picsVoted: { type: [
-        { type: Schema.Types.ObjectId, index: true, ref: 'Picture' }
-    ] },
-    picsSent: { type: [
-        { type: Schema.Types.ObjectId, index: true, ref: 'Picture' }
-    ] },
-    pictureIds: { type: [
-        { type: Schema.Types.ObjectId, ref: 'Picture' }
-    ] }
+    date: {type: Date, default: Date.now},
+    voteIds: {
+        type: [
+            {type: Schema.Types.ObjectId, ref: 'Vote'}
+        ]
+    },
+    picsVoted: {
+        type: [
+            {type: Schema.Types.ObjectId, index: true, ref: 'Picture'}
+        ]
+    },
+    picsSent: {
+        type: [
+            {type: Schema.Types.ObjectId, index: true, ref: 'Picture'}
+        ]
+    },
+    pictureIds: {
+        type: [
+            {type: Schema.Types.ObjectId, ref: 'Picture'}
+        ]
+    }
 });
 
 UserSchema.pre('save', function (next) {

@@ -39,12 +39,18 @@ exports.signin = function (request, reply) {
         return reply({id: data._id, success: true});
     });
 };
+exports.signOut = function (request, reply) {
+    return reply();
+}; //todo this function  (remove uuid from user?)
 
-exports.upVote = function (request, reply) {
-
+exports.schoolSelected = function (request, reply) {
+    request.pre.user.set('institution', request.payload.institution);
+    request.pre.user.save(function (err, user) {
+        if (err) throw err;
+        reply({success: true})
+    })
 };
 
-//todo seems to be breaking when no title with the picture
 exports.uploadPicture = function (request, reply) {
     var user = request.pre.user;
     var stream = '';
@@ -61,11 +67,12 @@ exports.uploadPicture = function (request, reply) {
             picture.userId = user._id;
             cloudinary.uploader.upload(payload.picture.base64, function (result) {
                 picture.url = result.url;
+                if (user.institution) picture.institution = user.institution;
                 picture.save(function (err, pic) {
-                    if (err) return reply({success: false, err: err.err});
+                    if (err) return reply({success: false, err: err});
                     user.pictureIds.push(pic._id);
                     user.save(function (err, user) {
-                        if (err) return reply({success: false, err: err.err});
+                        if (err) return reply({success: false, err: err});
                         return reply({success: true, picture: pic, user: user});
                     });
                 });
@@ -75,26 +82,22 @@ exports.uploadPicture = function (request, reply) {
 };
 
 exports.getUserIdByUuid = function (request, reply) {
-    User.findOne({uuid: request.query.uuid}, function (err, doc) {
+    User.findOne({uuid: request.query.uuid}).select('-password').exec(function (err, doc) {
         if (err) throw err;
         return reply(doc);
     });
 };
 
 
-exports.getUserPoints = function (request, reply) {
-    reply(request.pre.user.points);
-};
-
-
 function findPics(pictureIds, userLocation, loc, limit, reply) {
-    //todo populate userid is cool but there is to much info  (should remove password...)
-    Picture.find({_id: {$nin: pictureIds}}).populate('userId').where('location.' + loc).equals(userLocation[loc]).sort({date: -1}).limit(limit).exec(function (err, docs) {
+    //todo populate userid is cool but there is to much info  (should remove more than just password)
+    Picture.find({_id: {$nin: pictureIds}}).populate('userId').select('-userId.password').where('location.' + loc).equals(userLocation[loc]).sort({date: -1}).limit(limit).exec(function (err, docs) {
         if (err) throw err;
         return reply(docs);
     });
 }
 
+//todo add pictures from school
 exports.getPicturesVote = function (request, reply) {
     var user = request.pre.user,
         location = request.payload.location,
@@ -115,8 +118,7 @@ exports.getPicturesVote = function (request, reply) {
 
             if (pics.length > 4 || i > 2) {
                 pics.forEach(function (elem) {
-                    //todo remove this comment
-//                    user.picsSent.push(new ObjectId(elem._id));
+                    user.picsSent.push(new ObjectId(elem._id));
                 });
                 user.save(function (err, doc) {
                     if (err) throw err;
@@ -133,28 +135,42 @@ exports.getPicturesVote = function (request, reply) {
     getPics();
 };
 
-
-//todo people can change there vote (make sure to delete old one, and don't add points)
 exports.vote = function (request, reply) {
     var picId = request.payload.vote.pictureId;
     var user = request.pre.user;
-    var vote = new Vote(request.payload.vote);
-    vote.userId = user._id;
-    vote.pictureId = new ObjectId(picId);
-    vote.save(function (err, voteSaved) {
-        if (err) return reply({success: false, err: err.err});
-        user.voteIds.push(voteSaved);
-        Picture.findByIdAndUpdate(vote.pictureId, {$push: {voteIds: picId}}, function (err, picture) {
-            if (err) return reply({success: false, err: err.err});
-            user.picsVoted.push(picture);
-            user.picsSent.splice(user.picsSent.indexOf(new ObjectId(picture._id)), 1);
-            ++user.points;
-            user.save(function (err, doc) {
-                if (err) return reply({success: false, err: err.err});
+    var vote = request.payload.vote;
+    if (user.picsVoted.indexOf(picId) !== -1) {             //if user already voted
+        Vote.findOne({pictureId: new ObjectId(picId), userId: user._id}, function (err, doc) {
+            if (err) throw err;
+            doc.set('voteType', vote.voteType);
+            doc.set('location', vote.location);
+            doc.save(function (err, voteSaved) {
+                if (err) throw err;
                 return reply({success: true});
             });
+        })
+    } else {                                              //if user never voted
+        vote = new Vote(vote);
+        vote.set('userId', user._id);
+        vote.set('pictureId', new ObjectId(picId));
+        vote.set('userInstitution', user.get('institution'));
+        vote.save(function (err, voteSaved) {
+            if (err) return reply({success: false, err: err.err});
+            user.voteIds.push(voteSaved);
+            Picture.findByIdAndUpdate(vote.pictureId, {$push: {voteIds: picId}}, function (err, picture) {
+                if (err) return reply({success: false, err: err.err});
+                user.picsVoted.push(picture);
+                if (user.picsSent.indexOf(new ObjectId(picture._id)) !== -1) {//if we voted from the trending page
+                    user.picsSent.splice(user.picsSent.indexOf(new ObjectId(picture._id)), 1);
+                }
+                ++user.points;
+                user.save(function (err, doc) {
+                    if (err) return reply({success: false, err: err.err});
+                    return reply({success: true});
+                });
+            });
         });
-    });
+    }
 };
 
 //todo should put 0 if thereis no vote
@@ -181,25 +197,29 @@ function mapVote() {
             score = -0.5;
         }
     }
-    emit(this.pictureId, {score: score, location: this.location});
+    emit(this.pictureId, {score: score, location: this.location, institution: this.userInstitution});
 }
 
 function reduceVote(pictureId, obj) {
     //return {score:Array.sum(obj.score),location:obj[0].location};
-    var finalScore = obj.reduce(function (sum, item) {
-        return sum.score + item.score;
+    var finalScore = 0;
+    obj.reduce(function (sum, item) {
+        finalScore += item.score;
     });
     if (isNaN(finalScore)) finalScore = 0;
-    return {score: finalScore, location: obj[0].location};
+    return {score: finalScore, location: obj[0].location, institution: obj[0].institution};
 }
 
 function populateTrendingPicture(trendingPics, location, locationType, next) {
 
+
     var trendingPicture = new TrendingPicture({
-        location: location,
         locationType: locationType,
         pictures: trendingPics
     });
+
+    if (typeof location == 'string') trendingPicture.institution = location;
+    else trendingPicture.location = location;
 
     TrendingPicture.remove({location: location, locationType: locationType}, function (err) {
         if (err) throw err;
@@ -215,32 +235,36 @@ function mapReduceVote(locationType, location) {
     var reduceMapCallbackQuery = {};
 
     utils.query = {};
-    for (var key in location) {
-        utils.query['location.' + key] = location[key];
-        utils.query['pictureLocation.' + key] = location[key];
-        reduceMapCallbackQuery["value.location." + key] = location[key];
+    if (locationType == 'institution') {
+        utils.query['userInstitution'] = location;
+        utils.query['pictureInstitution'] = location;
+        reduceMapCallbackQuery["value.institution"] = location;
+    } else {
+        for (var key in location) {
+            utils.query['location.' + key] = location[key];
+            utils.query['pictureLocation.' + key] = location[key];
+            reduceMapCallbackQuery["value.location." + key] = location[key];
+        }
     }
 
     utils.map = mapVote;
     utils.reduce = reduceVote;
     utils.out = {merge: 'temp'};
-    //todo les scores sont calcules en fonction de la provenance des votes, on devrais aussi etre sur de la provenance des photos !
-    // pour etre la meilleur photo de san francisco il faut qu elle soit prise a sf
+
     Vote.mapReduce(utils, function (err, model, stats) {
         if (err) throw err;
         model.find(reduceMapCallbackQuery).sort({'value.score': -1}).limit(50).exec(function (err, docs) {
             if (err) throw err;
             var tempTrendingPicsToSave = [];
             var i = 1;
-            var rank = 0;
             docs.forEach(function (item) {
                 var picture = {};
-                Picture.findOne({_id: item._id}).populate('userId').exec(function (err, doc) {
+                Picture.findOne({_id: item._id}).populate('userId').select('-userId.password').exec(function (err, doc) {
                     if (err) throw err;
                     if (doc) { //bug happend here were picture got deleted
                         picture = doc;
                         picture._doc.userId = picture.get('userId').toJSON();
-                        picture._doc.score = item.value.score;
+                        picture.score = item.value.score;
                         tempTrendingPicsToSave.push(picture);
                     }
                     if (docs.length == i++) {
@@ -264,22 +288,33 @@ function mapReduceVote(locationType, location) {
 
 
 exports.getTopOnePicture = function (request, reply) {
-    // Sent {uuid:uuid,location:location}
     var location = request.payload.location,
+        user = request.pre.user,
         results = {},
         i = 0,
         d = new Date(),
-        dMinus6 = d.setHours(d.getHours() - 6);
-    //mapReduceVote('state', location.state);
-    var order = ['county', 'state', 'country'];
+        dMinus6 = d.setHours(d.getHours() - 6),
+        order = ['county', 'state', 'country'];
+    if (request.pre.user.institution) order.push('institution');
     order.forEach(function (elem, key, array) {
-        var type = elem;
-        var loc = JSON.parse(JSON.stringify(location));  //todo is there a reason?
+        var type = elem,
+            loc;
+        try {
+            if (type !== 'institution') loc = JSON.parse(JSON.stringify(location));
+            else loc = user.get('institution')
+        } catch (e) {
+            console.log('location not found?', e);
+            console.log('location:', location);
+            debugger
+        }
+
         var query = {};
         for (var key in location) {
             query['location.' + key] = location[key];
         }
         query.locationType = type;
+        if (type === 'institution') query['institution'] = request.pre.user.institution;
+
 
         TrendingPicture.findOne(query, function (err, doc) {
             if (err) throw err;
@@ -288,7 +323,7 @@ exports.getTopOnePicture = function (request, reply) {
                     return a.rank - b.rank;
                 });
                 results[type] = {
-                    name: loc[type],
+                    name: loc[type] || loc,
                     picture: doc.pictures[0].url,
                     score: doc.pictures[0].score
                 };
@@ -300,14 +335,10 @@ exports.getTopOnePicture = function (request, reply) {
                 }
             } else {
                 //if no picture avaible,
-                // todo host the picture on our side.
                 results[type] = {
-                    name: loc[type],
-                    picture: "http://cdn.meme.am/instances/500x/57529499.jpg"
+                    name: loc[type]
                 };
-                if (array.length == ++i) {
-                    reply(results);
-                }
+                if (array.length == ++i) reply(results);
                 mapReduceVote(type, loc);
             }
         });
@@ -315,8 +346,6 @@ exports.getTopOnePicture = function (request, reply) {
     });
 };
 
-
-//todo Client need to know if the current user have voted or not for the picture (picture.voted=true or false on payload)
 exports.getTrendingPicture = function (request, reply) {
     // Sent {uuid:uuid,location:location,type:type}
     var location = request.payload.location,
@@ -335,6 +364,8 @@ exports.getTrendingPicture = function (request, reply) {
         delete location['county'];
         delete location['state'];
         loc = location;
+    } else if (type == 'school') {
+        loc = {'institution': request.pre.user.institution};
     }
     for (var key in loc) {
         query['location.' + key] = loc[key];
@@ -344,13 +375,37 @@ exports.getTrendingPicture = function (request, reply) {
     TrendingPicture.findOne(query).exec(function (err, doc) {
         if (err) throw err;
         if (doc) {
-            reply(doc);
-            if (doc.date < dMinus6) {
-                mapReduceVote(type, location);
+            var i = 0;
+            doc.pictures.forEach(function (picture) {
+                ++i;
+                if (request.pre.user.picsVoted.indexOf(picture._id) !== -1) {
+                    Vote.findOne({pictureId: picture._id, userId: request.pre.user._id}, function (err, doc) {
+                        if (err) throw err;
+                        picture.vote = doc.voteType;
+                        if (--i == 0) next();
+                    })
+                } else if (--i == 0) next();
+            });
+            function next() {
+                reply(doc);
+                if (doc.date < dMinus6) {
+                    mapReduceVote(type, location);
+                }
             }
         } else {
             reply({});
             mapReduceVote(type, location);
         }
-    });
+    })
+};
+
+exports.getUserInfo = function (request, reply) {
+    var user = request.pre.user;
+    user.set('picsSent', user.get('picsSent').length, Number);  //don t really need this one
+    user.set('picsVoted', user.get('picsVoted').length, Number);
+    user.set('pictureIds', user.get('pictureIds').length, Number);
+    user.set('voteIds', user.get('voteIds').length, Number);
+    delete user._doc.uuid;
+    delete user._doc._id;
+    reply(user)
 };

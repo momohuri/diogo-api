@@ -10,20 +10,22 @@ var VoteSchema = new Schema({
         road: {type: String},
         neighbourhood: {type: String},
         city: {type: String},
-        county: {type: String},
-        state: {type: String},
+        county: {type: String,index:true},
+        state: {type: String,index:true},
         postcode: {type: String},
-        country: {type: String}
+        country: {type: String,index:true}
     },
     pictureLocation: {
         road: {type: String},
         neighbourhood: {type: String},
         city: {type: String},
-        county: {type: String},
-        state: {type: String},
+        county: {type: String,index:true},
+        state: {type: String,index:true},
         postcode: {type: String},
-        country: {type: String}
+        country: {type: String,index:true}
     },
+    userInstitution: {type: String,index:true},
+    pictureInstitution: {type: String,index:true},
     date: {type: Date, default: Date.now},
     userId: {type: {type: Schema.Types.ObjectId, ref: 'User'}},
     pictureId: {type: {type: Schema.Types.ObjectId, ref: 'Picture'}}
