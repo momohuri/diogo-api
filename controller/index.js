@@ -249,8 +249,8 @@ function mapReduceVote(locationType, location) {
 
     utils.map = mapVote;
     utils.reduce = reduceVote;
-    utils.out = {merge: 'temp'};
-
+    utils.out = {replace: JSON.stringify(location)};
+    //todo find a way of making this a singleton. (if multi-threading)
     Vote.mapReduce(utils, function (err, model, stats) {
         if (err) throw err;
         model.find(reduceMapCallbackQuery).sort({'value.score': -1}).limit(50).exec(function (err, docs) {
@@ -264,14 +264,14 @@ function mapReduceVote(locationType, location) {
                     if (doc) { //bug happend here were picture got deleted
                         picture = doc;
                         picture._doc.userId = picture.get('userId').toJSON();
-                        picture.score = item.value.score;
+                        picture._doc.score = item.value.score;
                         tempTrendingPicsToSave.push(picture);
                     }
                     if (docs.length == i++) {
                         tempTrendingPicsToSave = tempTrendingPicsToSave.sort(function (a, b) {
                             return b._doc.score - a._doc.score
                         });
-                        tempTrendingPicsToSave.map(function (a, i) {
+                        tempTrendingPicsToSave.forEach(function (a, i) {
                             a.rank = i + 1;
                         });
                         populateTrendingPicture(tempTrendingPicsToSave, location, locationType, function () {
