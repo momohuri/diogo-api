@@ -84,8 +84,10 @@ exports.uploadPicture = function (request, reply) {
 };
 
 exports.getUserIdByUuid = function (request, reply) {
-    User.findOne({uuid: request.query.uuid}).select('-password').exec(function (err, doc) {
+    var uuid = request.query.uuid || request.payload.uuid;
+    User.findOne({uuid: uuid}).select('-password').exec(function (err, doc) {
         if (err) throw err;
+        if (!doc)return reply({"success": false, "error": "UUID unknown"});
         return reply(doc);
     });
 };
@@ -108,7 +110,8 @@ exports.getPicturesVote = function (request, reply) {
         pics = [],
         i = 0,
         limit = 5;
-
+    //got the error message from the pre.
+    if (user.error)return reply(user);
     picturesToExclude = user.picsVoted.concat(user.picsSent, user.pictureIds);
     function getPics() {
         findPics(picturesToExclude, location, args[i], limit - pics.length, function (docs) {
