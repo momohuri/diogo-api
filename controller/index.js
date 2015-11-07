@@ -1,6 +1,8 @@
 /**
  * Created by Adrien on 8/24/2014.
  */
+
+var crypto = require('crypto');
 var User = require('../model/user'),
     Vote = require('../model/vote'),
     Picture = require('../model/picture'),
@@ -97,7 +99,7 @@ function findPics(pictureIds, userLocation, loc, limit, reply) {
     });
 }
 
-//todo add pictures from school
+//todo add pictures from institution
 exports.getPicturesVote = function (request, reply) {
     var user = request.pre.user,
         location = request.payload.location,
@@ -173,7 +175,6 @@ exports.vote = function (request, reply) {
     }
 };
 
-//todo should put 0 if thereis no vote
 function mapVote() {
     var score = 0,
         d = new ISODate(),
@@ -249,7 +250,8 @@ function mapReduceVote(locationType, location) {
 
     utils.map = mapVote;
     utils.reduce = reduceVote;
-    utils.out = {replace: JSON.stringify(location)};
+    var collectionName = crypto.createHash('md5').update('tempMapR-' + JSON.stringify(location)).digest('hex');
+    utils.out = {replace: collectionName};
     //todo find a way of making this a singleton. (if multi-threading)
     Vote.mapReduce(utils, function (err, model, stats) {
         if (err) throw err;
@@ -275,7 +277,7 @@ function mapReduceVote(locationType, location) {
                             a.rank = i + 1;
                         });
                         populateTrendingPicture(tempTrendingPicsToSave, location, locationType, function () {
-                            model.remove(reduceMapCallbackQuery, function (err) {
+                            mongoose.connection.db.dropCollection(collectionName, function (err, result) {
                                 if (err) throw err;
                             });
                         });
@@ -285,7 +287,6 @@ function mapReduceVote(locationType, location) {
         });
     });
 }
-
 
 exports.getTopOnePicture = function (request, reply) {
     var location = request.payload.location,
@@ -345,7 +346,7 @@ exports.getTopOnePicture = function (request, reply) {
         delete location[type];
     });
 };
-
+//todo why get top one and gettrending are so different? refactorise
 exports.getTrendingPicture = function (request, reply) {
     // Sent {uuid:uuid,location:location,type:type}
     var location = request.payload.location,
@@ -364,12 +365,13 @@ exports.getTrendingPicture = function (request, reply) {
         delete location['county'];
         delete location['state'];
         loc = location;
-    } else if (type == 'school') {
-        loc = {'institution': request.pre.user.institution};
     }
-    for (var key in loc) {
-        query['location.' + key] = loc[key];
+    if (type != 'institution') {
+        for (var key in loc) query['location.' + key] = loc[key];
+    } else if (type == 'institution') {
+        query['institution'] = request.payload.institution;
     }
+
     query.locationType = type;
 
     TrendingPicture.findOne(query).exec(function (err, doc) {
@@ -398,6 +400,7 @@ exports.getTrendingPicture = function (request, reply) {
         }
     })
 };
+
 
 exports.getUserInfo = function (request, reply) {
     var user = request.pre.user;

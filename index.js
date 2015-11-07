@@ -127,4 +127,3 @@ server.route([
 
 // Start the server
 server.start();
-console.log('server started');
