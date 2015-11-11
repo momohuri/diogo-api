@@ -45,6 +45,16 @@ exports.signOut = function (request, reply) {
     return reply();
 }; //todo this function  (remove uuid from user?)
 
+exports.getUserIdByUuid = function (request, reply) {
+    var uuid = request.query ? request.query.uuid : request.payload.uuid;
+    User.findOne({uuid: uuid}).select('-password').exec(function (err, doc) {
+        if (err) throw err;
+        if (!doc)return reply({"success": false, "error": "UUID unknown"});
+        return reply(doc);
+    });
+};
+
+
 exports.schoolSelected = function (request, reply) {
     request.pre.user.set('institution', request.payload.institution);
     request.pre.user.save(function (err, user) {
@@ -61,7 +71,6 @@ exports.uploadPicture = function (request, reply) {
     });
 
     request.payload.on('end', function (data) {
-
         var payload = JSON.parse(stream);
         var picture = new Picture(payload.picture);
         User.findOne({uuid: payload.uuid}, function (err, user) {
@@ -83,19 +92,10 @@ exports.uploadPicture = function (request, reply) {
     });
 };
 
-exports.getUserIdByUuid = function (request, reply) {
-    var uuid = request.query.uuid || request.payload.uuid;
-    User.findOne({uuid: uuid}).select('-password').exec(function (err, doc) {
-        if (err) throw err;
-        if (!doc)return reply({"success": false, "error": "UUID unknown"});
-        return reply(doc);
-    });
-};
-
 
 function findPics(pictureIds, userLocation, loc, limit, reply) {
     //todo populate userid is cool but there is to much info  (should remove more than just password)
-    Picture.find({_id: {$nin: pictureIds}}).populate('userId').select('-userId.password').where('location.' + loc).equals(userLocation[loc]).sort({date: -1}).limit(limit).exec(function (err, docs) {
+    Picture.find({_id: {$nin: pictureIds}}).populate('userId', 'username').where('location.' + loc).equals(userLocation[loc]).sort({date: -1}).limit(limit).exec(function (err, docs) {
         if (err) throw err;
         return reply(docs);
     });

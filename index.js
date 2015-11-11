@@ -9,10 +9,10 @@ var server = new Hapi.Server('0.0.0.0', PORT, {cors: true});
 
 // Connection mongoose
 //test
-//mongoose.connect('mongodb://adrien:vinches@kahana.mongohq.com:10082/diogotest');
+mongoose.connect('mongodb://adrien:vinches@kahana.mongohq.com:10082/diogotest');
 //dev
 //
-mongoose.connect('mongodb://adrien:vinches@kahana.mongohq.com:10022/diogo');
+//mongoose.connect('mongodb://adrien:vinches@kahana.mongohq.com:10022/diogo');
 
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));

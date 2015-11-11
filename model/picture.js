@@ -7,7 +7,7 @@ var PictureSchema = new Schema({
     name: {type: String},
     location: {
         road: {type: String},
-        neighbourhood: {type: String},
+        neighborhood: {type: String},
         city: {type: String},
         county: {type: String, index: true},
         state: {type: String, index: true},

@@ -9,10 +9,16 @@ var should = require('should');
 mongoose.connect('mongodb://adrien:vinches@kahana.mongohq.com:10082/diogotest');
 var db = mongoose.connection;
 
+var testData = require("./testData");
+
+var user = testData.user;
+var institution = testData.institution;
+var picture = testData.picture;
+
 
 describe('cleandb', function () {
     it("should clean DB", function (done) {
-        User.find({username: "momo"}).remove(function () {
+        User.find({username: user.username}).remove(function () {
             done()
         })
     })
@@ -20,16 +26,9 @@ describe('cleandb', function () {
 
 //need to add more usecases...
 
-var user = {
-    username: "momo",
-    password: "myPWD",
-    uuid: "12345"
-};
-
 
 describe('controller', function () {
     describe('signin', function () {
-
         it('signed in', function (done) {
             var request = {
                 payload: user
@@ -71,6 +70,29 @@ describe('controller', function () {
         });
     });
 
+    describe("get user by UUID", function () {
+        it("should give me a user", function (done) {
+            Controller.getUserIdByUuid({payload: {uuid: user.uuid}}, function (user) {
+                user.get('username').should.equal("momo");
+                done();
+            })
+        })
+    });
+    describe("select a school", function () {
+        it("should select an institution", function (done) {
+            Controller.getUserIdByUuid({query: {uuid: user.uuid}}, function (pre) {
+                var request = {
+                    payload: institution, pre: {
+                        user: pre
+                    }
+                };
+                Controller.schoolSelected(request, function (res) {
+                    res.success.should.equal(true);
+                    done();
+                })
+            });
+        });
+    });
     describe("getPicture to vote", function () {
         it('respond with matching records', function (done) {
             Controller.getUserIdByUuid({query: {uuid: user.uuid}}, function (pre) {
@@ -102,7 +124,41 @@ describe('controller', function () {
         });
     });
 
+    describe("upload a picture", function () {
+        it("should upload a new picture", function (done) {
+
+            cloudinary = require('cloudinary');
+            cloudinary.config({
+                cloud_name: 'diogo',
+                api_key: '276795536938783',
+                api_secret: 'kuN-419Ocb-RlmaOooDkolgz2YM'
+            });
+
+            Controller.getUserIdByUuid({query: {uuid: user.uuid}}, function (pre) {
+                var request = {
+                    picture: picture,
+                    uuid:user.uuid
+                };
+
+                var stream = require('stream');
+                var rs = {payload: new stream.Readable({objectMode: true})};
+                rs.payload._read = function () {
+                    rs.payload.push(JSON.stringify(request));
+                    rs.payload.push(null);
+                };
+                rs.pre = {user: pre};
+
+
+                Controller.uploadPicture(rs, function (res) {
+                    res.success.should.equal(true);
+                    done();
+                })
+            });
+        });
+    })
 });
+
+
 
 
 
