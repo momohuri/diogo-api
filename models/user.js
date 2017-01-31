@@ -1,9 +1,7 @@
-/**
- * Created by Adrien on 8/24/2014.
- */
-var Schema = mongoose.Schema,
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema,
     crypto = require('crypto');
-var UserSchema = new Schema({
+const UserSchema = new Schema({
     username: {type: String, required: true, index: {unique: true}},
     password: {type: String, required: true},
     points: {type: Number, default: 0},
@@ -33,10 +31,10 @@ var UserSchema = new Schema({
 });
 
 UserSchema.pre('save', function (next) {
-    var user = this;
+    const user = this;
     // only hash the password if it has been modified (or is new)
     if (!user.isModified('password')) return next();
-    var shasum = crypto.createHash('sha1');
+    const shasum = crypto.createHash('sha1');
     shasum.update(user.password);
     user.password = shasum.digest('hex');
     next();
@@ -44,9 +42,9 @@ UserSchema.pre('save', function (next) {
 
 UserSchema.statics = {
     comparePassword: function (password, passwordCandidate, next) {
-        var shasum = crypto.createHash('sha1');
+        const shasum = crypto.createHash('sha1');
         shasum.update(passwordCandidate);
-        var candidatePasswordHash = shasum.digest('hex');
+        const candidatePasswordHash = shasum.digest('hex');
         return next(null, (candidatePasswordHash === password));
     }
 };

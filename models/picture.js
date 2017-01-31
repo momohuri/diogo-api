@@ -1,9 +1,7 @@
-/**
- * Created by Adrien on 8/26/2014.
- */
-var Schema = mongoose.Schema;
-  //todo is there any use for storing vote ids here?
-var PictureSchema = new Schema({
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+//todo is there any use for storing vote ids here?
+const PictureSchema = new Schema({
     name: {type: String},
     location: {
         road: {type: String},

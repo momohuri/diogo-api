@@ -1,12 +1,8 @@
-/**
- * Created by Adrien on 8/24/2014.
- */
-
-var crypto = require('crypto');
-var User = require('../model/user'),
-    Vote = require('../model/vote'),
-    Picture = require('../model/picture'),
-    TrendingPicture = require('../model/trendingPicture'),
+const crypto = require('crypto');
+const User = require('../models/user'),
+    Vote = require('../models/vote'),
+    Picture = require('../models/picture'),
+    TrendingPicture = require('../models/trendingPicture'),
     ObjectId = require('mongoose').Types.ObjectId;
 
 
@@ -14,10 +10,10 @@ var User = require('../model/user'),
 exports.login = function (request, reply) {
     User.findOne({username: request.payload.username}, function (err, userMatch) {
         if (err) reply(err, null);
-        if (!userMatch) return reply({success: false, err: "UserName doesn't exist"});
+        if (!userMatch) return reply({success: false, err: "username doesn't exist"});
         User.comparePassword(userMatch.password, request.payload.password, function (err, isMatch) {
             if (err) throw err;
-            if (!isMatch) return reply({success: false, err: "Password doesn't match"});
+            if (!isMatch) return reply({success: false, err: "password doesn't match"});
             if (userMatch.uuid.indexOf(request.payload.uuid) !== -1) return reply({id: userMatch.id, success: true});
             else {
                 userMatch.uuid.push(request.payload.uuid);
@@ -31,13 +27,13 @@ exports.login = function (request, reply) {
     });
 };
 exports.signin = function (request, reply) {
-    var user = new User({
+    const user = new User({
         username: request.payload.username,
         password: request.payload.password,
         uuid: request.payload.uuid
     });
     user.save(function (err, data) {
-        if (err) return reply({success: false, err: err.err});
+        if (err) return reply({success: false, err: "username already exists"});
         return reply({id: data._id, success: true});
     });
 };
@@ -46,10 +42,19 @@ exports.signOut = function (request, reply) {
 }; //todo this function  (remove uuid from user?)
 
 exports.getUserIdByUuid = function (request, reply) {
-    var uuid = request.query ? request.query.uuid : request.payload.uuid;
+    const uuid = request.query ? request.query.uuid : request.payload.uuid;
     User.findOne({uuid: uuid}).select('-password').exec(function (err, doc) {
         if (err) throw err;
         if (!doc)return reply({"success": false, "error": "UUID unknown"});
+        return reply(doc);
+    });
+};
+
+exports.getUserIdByUsername = function (request, reply) {
+    const username = request.query.username ? request.query.username : request.payload.username;
+    User.findOne({username: username}).select('-password').exec(function (err, doc) {
+        if (err) throw err;
+        if (!doc)return reply({"success": false, "error": "username unknown"});
         return reply(doc);
     });
 };
@@ -64,15 +69,15 @@ exports.schoolSelected = function (request, reply) {
 };
 
 exports.uploadPicture = function (request, reply) {
-    var user = request.pre.user;
-    var stream = '';
+    const user = request.pre.user;
+    let stream = '';
     request.payload.on('data', function (chunk) {
         stream += chunk;
     });
 
     request.payload.on('end', function (data) {
-        var payload = JSON.parse(stream);
-        var picture = new Picture(payload.picture);
+        const payload = JSON.parse(stream);
+        const picture = new Picture(payload.picture);
         User.findOne({uuid: payload.uuid}, function (err, user) {
             if (err) throw err;
             picture.userId = user._id;
@@ -103,20 +108,18 @@ function findPics(pictureIds, userLocation, loc, limit, reply) {
 
 //todo add pictures from institution
 exports.getPicturesVote = function (request, reply) {
-    var user = request.pre.user,
+    const user = request.pre.user,
         location = request.payload.location,
-        picturesToExclude = [],
-        args = ['county', 'state', 'country'],
-        pics = [],
-        i = 0,
+        args = ['city', 'state', 'country'],
         limit = 5;
+    let pics = [], picturesToExclude = [], i = 0;
     //got the error message from the pre.
     if (user.error)return reply(user);
     picturesToExclude = user.picsVoted.concat(user.picsSent, user.pictureIds);
     function getPics() {
         findPics(picturesToExclude, location, args[i], limit - pics.length, function (docs) {
             pics = pics.concat(docs);
-            var picsTemp = pics.map(function (elem) {
+            const picsTemp = pics.map(function (elem) {
                 return elem._id;
             });
             picturesToExclude = picturesToExclude.concat(picsTemp);
@@ -141,9 +144,9 @@ exports.getPicturesVote = function (request, reply) {
 };
 
 exports.vote = function (request, reply) {
-    var picId = request.payload.vote.pictureId;
-    var user = request.pre.user;
-    var vote = request.payload.vote;
+    const picId = request.payload.vote.pictureId;
+    const user = request.pre.user;
+    let vote = request.payload.vote;
     if (user.picsVoted.indexOf(picId) !== -1) {             //if user already voted
         Vote.findOne({pictureId: new ObjectId(picId), userId: user._id}, function (err, doc) {
             if (err) throw err;
@@ -179,10 +182,10 @@ exports.vote = function (request, reply) {
 };
 
 function mapVote() {
-    var score = 0,
+    const score = 0,
         d = new ISODate(),
         dMinus6 = d.setHours(d.getHours() - 6),
-        dMinus12 = d.setHours(d.getHours() - 6);
+        dMinus12 = d.setHours(d.getHours() - 12);
 
     if (this.voteType) {
         if (this.date > dMinus6) {
@@ -206,7 +209,7 @@ function mapVote() {
 
 function reduceVote(pictureId, obj) {
     //return {score:Array.sum(obj.score),location:obj[0].location};
-    var finalScore = 0;
+    const finalScore = 0;
     obj.reduce(function (sum, item) {
         finalScore += item.score;
     });
@@ -217,7 +220,7 @@ function reduceVote(pictureId, obj) {
 function populateTrendingPicture(trendingPics, location, locationType, next) {
 
 
-    var trendingPicture = new TrendingPicture({
+    const trendingPicture = new TrendingPicture({
         locationType: locationType,
         pictures: trendingPics
     });
@@ -235,8 +238,8 @@ function populateTrendingPicture(trendingPics, location, locationType, next) {
 }
 
 function mapReduceVote(locationType, location) {
-    var utils = {};
-    var reduceMapCallbackQuery = {};
+    const utils = {};
+    const reduceMapCallbackQuery = {};
 
     utils.query = {};
     if (locationType == 'institution') {
@@ -244,7 +247,7 @@ function mapReduceVote(locationType, location) {
         utils.query['pictureInstitution'] = location;
         reduceMapCallbackQuery["value.institution"] = location;
     } else {
-        for (var key in location) {
+        for (const key in location) {
             utils.query['location.' + key] = location[key];
             utils.query['pictureLocation.' + key] = location[key];
             reduceMapCallbackQuery["value.location." + key] = location[key];
@@ -253,17 +256,17 @@ function mapReduceVote(locationType, location) {
 
     utils.map = mapVote;
     utils.reduce = reduceVote;
-    var collectionName = crypto.createHash('md5').update('tempMapR-' + JSON.stringify(location)).digest('hex');
+    const collectionName = crypto.createHash('md5').update('tempMapR-' + JSON.stringify(location)).digest('hex');
     utils.out = {replace: collectionName};
     //todo find a way of making this a singleton. (if multi-threading)
     Vote.mapReduce(utils, function (err, model, stats) {
         if (err) throw err;
         model.find(reduceMapCallbackQuery).sort({'value.score': -1}).limit(50).exec(function (err, docs) {
             if (err) throw err;
-            var tempTrendingPicsToSave = [];
-            var i = 1;
+            const tempTrendingPicsToSave = [];
+            const i = 1;
             docs.forEach(function (item) {
-                var picture = {};
+                const picture = {};
                 Picture.findOne({_id: item._id}).populate('userId').select('-userId.password').exec(function (err, doc) {
                     if (err) throw err;
                     if (doc) { //bug happend here were picture got deleted
@@ -292,7 +295,7 @@ function mapReduceVote(locationType, location) {
 }
 
 exports.getTopOnePicture = function (request, reply) {
-    var location = request.payload.location,
+    const location = request.payload.location,
         user = request.pre.user,
         results = {},
         i = 0,
@@ -301,8 +304,8 @@ exports.getTopOnePicture = function (request, reply) {
         order = ['county', 'state', 'country'];
     if (request.pre.user.institution) order.push('institution');
     order.forEach(function (elem, key, array) {
-        var type = elem,
-            loc;
+        const type = elem;
+        let loc;
         try {
             if (type !== 'institution') loc = JSON.parse(JSON.stringify(location));
             else loc = user.get('institution')
@@ -312,8 +315,8 @@ exports.getTopOnePicture = function (request, reply) {
             debugger
         }
 
-        var query = {};
-        for (var key in location) {
+        const query = {};
+        for (const key in location) {
             query['location.' + key] = location[key];
         }
         query.locationType = type;
@@ -349,10 +352,11 @@ exports.getTopOnePicture = function (request, reply) {
         delete location[type];
     });
 };
+
 //todo why get top one and gettrending are so different? refactorise
 exports.getTrendingPicture = function (request, reply) {
     // Sent {uuid:uuid,location:location,type:type}
-    var location = request.payload.location,
+    const location = request.payload.location,
         type = request.payload.type,
         loc = {},
         query = {},
@@ -370,7 +374,7 @@ exports.getTrendingPicture = function (request, reply) {
         loc = location;
     }
     if (type != 'institution') {
-        for (var key in loc) query['location.' + key] = loc[key];
+        for (const key in loc) query['location.' + key] = loc[key];
     } else if (type == 'institution') {
         query['institution'] = request.payload.institution;
     }
@@ -380,7 +384,7 @@ exports.getTrendingPicture = function (request, reply) {
     TrendingPicture.findOne(query).exec(function (err, doc) {
         if (err) throw err;
         if (doc) {
-            var i = 0;
+            const i = 0;
             doc.pictures.forEach(function (picture) {
                 ++i;
                 if (request.pre.user.picsVoted.indexOf(picture._id) !== -1) {
@@ -406,7 +410,7 @@ exports.getTrendingPicture = function (request, reply) {
 
 
 exports.getUserInfo = function (request, reply) {
-    var user = request.pre.user;
+    const user = request.pre.user;
     user.set('picsSent', user.get('picsSent').length, Number);  //don t really need this one
     user.set('picsVoted', user.get('picsVoted').length, Number);
     user.set('pictureIds', user.get('pictureIds').length, Number);

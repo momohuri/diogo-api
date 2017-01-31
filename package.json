@@ -1,31 +1,22 @@
 {
-  "name": "diogo-api",
-  "version": "0.0.1-14",
+  "name": "diogo_api",
+  "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/momohuri/diogo-api.git"
+    "test": "mocha"
   },
   "author": "",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/momohuri/diogo-api/issues"
-  },
-  "homepage": "https://github.com/momohuri/diogo-api",
   "dependencies": {
-    "cloudinary": "^1.0.12",
-    "hapi": "^6.6.0",
-    "mocha": "^2.3.3",
-    "mongoose": "^3.8.15",
-    "should": "^4.0.4"
+    "bell": "^8.5.0",
+    "hapi": "^16.1.0",
+    "hoek": "^4.1.0",
+    "mongoose": "^4.8.0"
   },
-  "subdomain": "diogo-api",
-  "engines": {
-    "node": "0.10.x"
+  "devDependencies": {
+    "describe": "^1.2.0",
+    "mocha": "^2.3.3",
+    "should": "^11.2.0"
   }
 }

@@ -1,24 +1,21 @@
-/**
- * Created by Adrien on 8/31/2014.
- */
 mongoose = require("mongoose");
-var Picture = require('../model/picture');
-var User = require('../model/user');
-var Controller = require("../controller/");
-var should = require('should');
-mongoose.connect('mongodb://adrien:vinches@kahana.mongohq.com:10082/diogotest');
-var db = mongoose.connection;
+const Picture = require('../models/picture');
+const User = require('../models/user');
+const Controller = require("../controllers/");
+const should = require('should');
+mongoose.connect('mongodb://localhost/diogotest');
+const db = mongoose.connection;
 
-var testData = require("./testData");
+const testData = require("./testData");
 
-var user = testData.user;
-var institution = testData.institution;
-var picture = testData.picture;
+const users = testData.users;
+const institution = testData.institution;
+const pictures = testData.pictures;
 
 
 describe('cleandb', function () {
     it("should clean DB", function (done) {
-        User.find({username: user.username}).remove(function () {
+        User.find({username: users[0].username}).remove(function () {
             done()
         })
     })
@@ -30,18 +27,22 @@ describe('cleandb', function () {
 describe('controller', function () {
     describe('signin', function () {
         it('signed in', function (done) {
-            var request = {
-                payload: user
-            };
-            Controller.signin(request, function (res) {
-                res.success.should.equal(true);
-                done();
+
+            users.forEach((user) => {
+                const request = {
+                    payload: user
+                };
+                Controller.signin(request, function (res) {
+                    res.success.should.equal(true);
+                    done();
+                });
             });
+
         });
 
         it('should not signed in (duplicate username)', function (done) {
-            var request = {
-                payload: user
+            const request = {
+                payload: users[0]
             };
             Controller.signin(request, function (res) {
                 res.success.should.equal(false);
@@ -52,15 +53,15 @@ describe('controller', function () {
 
     describe('LogIn', function () {
         it('should logIn', function (done) {
-            var request = {payload: user};
+            const request = {payload: users[0]};
             Controller.login(request, function (res) {
-                user.id = res.id;
+                users[0].id = res.id;
                 res.success.should.equal(true);
                 done();
             });
         });
         it('should not logIn', function (done) {
-            var request = {payload: user};
+            const request = {payload: users[0]};
             request.payload.password = "nop";
             Controller.login(request, function (res) {
                 res.success.should.equal(false);
@@ -72,7 +73,7 @@ describe('controller', function () {
 
     describe("get user by UUID", function () {
         it("should give me a user", function (done) {
-            Controller.getUserIdByUuid({payload: {uuid: user.uuid}}, function (user) {
+            Controller.getUserIdByUuid({payload: {uuid: users[0].uuid}}, function (user) {
                 user.get('username').should.equal("momo");
                 done();
             })
@@ -80,8 +81,8 @@ describe('controller', function () {
     });
     describe("select a school", function () {
         it("should select an institution", function (done) {
-            Controller.getUserIdByUuid({query: {uuid: user.uuid}}, function (pre) {
-                var request = {
+            Controller.getUserIdByUuid({query: {uuid: users[0].uuid}}, function (pre) {
+                const request = {
                     payload: institution, pre: {
                         user: pre
                     }
@@ -95,8 +96,8 @@ describe('controller', function () {
     });
     describe("getPicture to vote", function () {
         it('respond with matching records', function (done) {
-            Controller.getUserIdByUuid({query: {uuid: user.uuid}}, function (pre) {
-                var request = {
+            Controller.getUserIdByUuid({query: {uuid: users[0].uuid}}, function (pre) {
+                const request = {
                     payload: {
                         location: {
                             road: "232 carl street",
@@ -125,8 +126,9 @@ describe('controller', function () {
     });
 
     describe("upload a picture", function () {
-        it("should upload a new picture", function (done) {
+        const uploaded_pictures = [];
 
+        it("should upload a new picture", function (done) {
             cloudinary = require('cloudinary');
             cloudinary.config({
                 cloud_name: 'diogo',
@@ -134,28 +136,51 @@ describe('controller', function () {
                 api_secret: 'kuN-419Ocb-RlmaOooDkolgz2YM'
             });
 
-            Controller.getUserIdByUuid({query: {uuid: user.uuid}}, function (pre) {
-                var request = {
-                    picture: picture,
-                    uuid:user.uuid
-                };
+            Controller.getUserIdByUuid({query: {uuid: users[0].uuid}}, function (pre) {
+                pictures.forEach((picture) => {
+                    const request = {
+                        picture: picture.picture,
+                        uuid: users[0].uuid
+                    };
 
-                var stream = require('stream');
-                var rs = {payload: new stream.Readable({objectMode: true})};
-                rs.payload._read = function () {
-                    rs.payload.push(JSON.stringify(request));
-                    rs.payload.push(null);
-                };
-                rs.pre = {user: pre};
+                    const stream = require('stream');
+                    const rs = {payload: new stream.Readable({objectMode: true})};
+                    rs.payload._read = function () {
+                        rs.payload.push(JSON.stringify(request));
+                        rs.payload.push(null);
+                    };
+                    rs.pre = {user: pre};
 
 
-                Controller.uploadPicture(rs, function (res) {
-                    res.success.should.equal(true);
-                    done();
-                })
+                    Controller.uploadPicture(rs, function (res) {
+                        res.success.should.equal(true);
+                        uploaded_pictures.push(res.picture.id);
+                        done();
+                    })
+                });
+
             });
         });
-    })
+
+        it("should vote for pictures", function (done) {
+            Controller.getUserIdByUsername({query: {username: users[1].username}}, (pre) => {
+                uploaded_pictures.forEach((picture_id) => {
+                    const request = {
+                        pre: {user: pre},
+                        payload: {
+                            vote: {
+                                voteType: true,
+                                pictureId: picture_id
+                            }
+                        }
+                    };
+                    Controller.vote(request, (reply) => {
+                        debugger
+                    })
+                });
+            });
+        });
+    });
 });
 
 

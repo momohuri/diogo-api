@@ -1,10 +1,8 @@
-/**
- * Created by Adrien on 8/26/2014.
- */
-var Schema = mongoose.Schema;
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
 //if we have the location of the picture also is for the map reduce
-var VoteSchema = new Schema({
+const VoteSchema = new Schema({
     voteType: {type: Boolean, required: true},
     location: {
         road: {type: String},
