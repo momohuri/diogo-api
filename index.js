@@ -6,11 +6,14 @@ const Bell = require("bell");
 const Controller = require("./controllers/index");
 const mongoose = require('mongoose');
 
-mongoose.connect('mongodb://localhost/diogotest');
+// mongoose.connect('mongodb://localhost/diogotest');
+mongoose.connect('mongodb://diogo:123diogo45@ds137729.mlab.com:37729/diogo');
 
 
 const server = new Hapi.Server();
-server.connection({host: 'localhost', port: 8000});
+
+const PORT = process.env.PORT || 8000;
+server.connection({host: '0.0.0.0', port: PORT, routes: {cors: true}});
 
 server.register(Bell, (err) => {
 
@@ -39,7 +42,7 @@ server.register(Bell, (err) => {
                     mode: 'try'
                 },
                 handler: function (request, reply) {
-                    //todo implement that 
+                    //todo implement that
 
                     if (!request.auth.isAuthenticated) {
                         return reply('Authentication failed due to: ' + request.auth.error.message);
@@ -81,7 +84,7 @@ server.register(Bell, (err) => {
             method: 'POST',
             path: '/uploadPicture',
             config: {
-                pre: [{ method: Controller.getUserIdByUsername, assign: 'user' }],
+                pre: [{method: Controller.getUserIdByUsername, assign: 'user'}],
                 handler: Controller.uploadPicture,
                 payload: {
                     maxBytes: 1048576 * 10, // 10MB
