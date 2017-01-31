@@ -3,8 +3,8 @@ const Picture = require('../models/picture');
 const User = require('../models/user');
 const Controller = require("../controllers/");
 const should = require('should');
-mongoose.connect('mongodb://localhost/diogotest');
-const db = mongoose.connection;
+mongoose.connect('mongodb://diogo:123diogo45@ds137729.mlab.com:37729/diogo');
+
 
 const testData = require("./testData");
 
@@ -27,7 +27,6 @@ describe('cleandb', function () {
 describe('controller', function () {
     describe('signin', function () {
         it('signed in', function (done) {
-
             users.forEach((user) => {
                 const request = {
                     payload: user
@@ -94,36 +93,7 @@ describe('controller', function () {
             });
         });
     });
-    describe("getPicture to vote", function () {
-        it('respond with matching records', function (done) {
-            Controller.getUserIdByUuid({query: {uuid: users[0].uuid}}, function (pre) {
-                const request = {
-                    payload: {
-                        location: {
-                            road: "232 carl street",
-                            neighbourhood: "Cole Valley",
-                            city: "San Francisco",
-                            county: "San Francisco County",
-                            state: "California",
-                            postcode: "94117",
-                            country: "United States of America",
-                            country_code: "us"
-                        },
-                        uuid: "32EC0404-7B60-456F-AFD5-FE70FCFDCDEA"
-                    },
-                    pre: {
-                        user: pre
-                    }
-                };
-                Controller.getPicturesVote(request, function (res) {
-                    res.should.have.length(5);
-                    done();
-                });
-            });
 
-
-        });
-    });
 
     describe("upload a picture", function () {
         const uploaded_pictures = [];
@@ -170,15 +140,53 @@ describe('controller', function () {
                         payload: {
                             vote: {
                                 voteType: true,
-                                pictureId: picture_id
+                                pictureId: picture_id,
+                                "pictureLocation": {
+                                    "city": "San Francisco",
+                                    "state": "California",
+                                    "country": "United States of America"
+                                }
                             }
                         }
                     };
-                    Controller.vote(request, (reply) => {
-                        debugger
+                    Controller.vote(request, (res) => {
+                        res.success.should.equal(true);
+                        done();
                     })
                 });
             });
+        });
+    });
+
+
+    describe("getPicture to vote", function () {
+        it('respond with matching records', function (done) {
+            Controller.getUserIdByUuid({query: {uuid: users[0].uuid}}, function (pre) {
+                const request = {
+                    payload: {
+                        location: {
+                            road: "232 carl street",
+                            neighbourhood: "Cole Valley",
+                            city: "San Francisco",
+                            county: "San Francisco County",
+                            state: "California",
+                            postcode: "94117",
+                            country: "United States of America",
+                            country_code: "us"
+                        },
+                        uuid: "32EC0404-7B60-456F-AFD5-FE70FCFDCDEA"
+                    },
+                    pre: {
+                        user: pre
+                    }
+                };
+                Controller.getPicturesVote(request, function (res) {
+                    res.should.have.length(5);
+                    done();
+                });
+            });
+
+
         });
     });
 });

@@ -157,15 +157,16 @@ exports.vote = function (request, reply) {
                 return reply({success: true});
             });
         })
-    } else {                                              //if user never voted
-        vote = new Vote(vote);
-        vote.set('userId', user._id);
-        vote.set('pictureId', new ObjectId(picId));
-        vote.set('userInstitution', user.get('institution'));
-        vote.save(function (err, voteSaved) {
+    } else {
+        //if user never voted
+        const vote_instance = new Vote(vote);
+        vote_instance.set('userId', user._id);
+        vote_instance.set('pictureId', new ObjectId(picId));
+        vote_instance.set('userInstitution', user.get('institution'));
+        vote_instance.save((err, voteSaved) => {
             if (err) return reply({success: false, err: err.err});
             user.voteIds.push(voteSaved);
-            Picture.findByIdAndUpdate(vote.pictureId, {$push: {voteIds: picId}}, function (err, picture) {
+            Picture.findByIdAndUpdate(vote.pictureId, {$push: {voteIds: picId}}, (err, picture) => {
                 if (err) return reply({success: false, err: err.err});
                 user.picsVoted.push(picture);
                 if (user.picsSent.indexOf(new ObjectId(picture._id)) !== -1) {//if we voted from the trending page
@@ -182,8 +183,8 @@ exports.vote = function (request, reply) {
 };
 
 function mapVote() {
-    const score = 0,
-        d = new ISODate(),
+    var score = 0,
+        d = new Date(),
         dMinus6 = d.setHours(d.getHours() - 6),
         dMinus12 = d.setHours(d.getHours() - 12);
 
@@ -204,21 +205,20 @@ function mapVote() {
             score = -0.5;
         }
     }
-    emit(this.pictureId, {score: score, location: this.location, institution: this.userInstitution});
+    emit(this.pictureId, {score: score, location: this.pictureLocation});
 }
 
 function reduceVote(pictureId, obj) {
     //return {score:Array.sum(obj.score),location:obj[0].location};
-    const finalScore = 0;
+    var finalScore = 0;
     obj.reduce(function (sum, item) {
         finalScore += item.score;
     });
     if (isNaN(finalScore)) finalScore = 0;
-    return {score: finalScore, location: obj[0].location, institution: obj[0].institution};
+    return {score: finalScore, location: obj[0].location};
 }
 
 function populateTrendingPicture(trendingPics, location, locationType, next) {
-
 
     const trendingPicture = new TrendingPicture({
         locationType: locationType,
@@ -248,7 +248,6 @@ function mapReduceVote(locationType, location) {
         reduceMapCallbackQuery["value.institution"] = location;
     } else {
         for (const key in location) {
-            utils.query['location.' + key] = location[key];
             utils.query['pictureLocation.' + key] = location[key];
             reduceMapCallbackQuery["value.location." + key] = location[key];
         }
@@ -263,15 +262,13 @@ function mapReduceVote(locationType, location) {
         if (err) throw err;
         model.find(reduceMapCallbackQuery).sort({'value.score': -1}).limit(50).exec(function (err, docs) {
             if (err) throw err;
-            const tempTrendingPicsToSave = [];
-            const i = 1;
+            let tempTrendingPicsToSave = [];
+            let i = 1;
             docs.forEach(function (item) {
-                const picture = {};
-                Picture.findOne({_id: item._id}).populate('userId').select('-userId.password').exec(function (err, doc) {
+                Picture.findOne({_id: item._id}).select('-userId.password').exec(function (err, doc) {
                     if (err) throw err;
                     if (doc) { //bug happend here were picture got deleted
-                        picture = doc;
-                        picture._doc.userId = picture.get('userId').toJSON();
+                        const picture = doc;
                         picture._doc.score = item.value.score;
                         tempTrendingPicsToSave.push(picture);
                     }
@@ -283,7 +280,7 @@ function mapReduceVote(locationType, location) {
                             a.rank = i + 1;
                         });
                         populateTrendingPicture(tempTrendingPicsToSave, location, locationType, function () {
-                            mongoose.connection.db.dropCollection(collectionName, function (err, result) {
+                            Picture.db.db.dropCollection.dropCollection(collectionName, function (err, result) {
                                 if (err) throw err;
                             });
                         });
@@ -356,7 +353,7 @@ exports.getTopOnePicture = function (request, reply) {
 //todo why get top one and gettrending are so different? refactorise
 exports.getTrendingPicture = function (request, reply) {
     // Sent {uuid:uuid,location:location,type:type}
-    const location = request.payload.location,
+    let location = request.payload.location,
         type = request.payload.type,
         loc = {},
         query = {},
@@ -384,7 +381,7 @@ exports.getTrendingPicture = function (request, reply) {
     TrendingPicture.findOne(query).exec(function (err, doc) {
         if (err) throw err;
         if (doc) {
-            const i = 0;
+            let i = 0;
             doc.pictures.forEach(function (picture) {
                 ++i;
                 if (request.pre.user.picsVoted.indexOf(picture._id) !== -1) {
