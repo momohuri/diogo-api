@@ -280,7 +280,7 @@ function mapReduceVote(locationType, location) {
                             a.rank = i + 1;
                         });
                         populateTrendingPicture(tempTrendingPicsToSave, location, locationType, function () {
-                            Picture.db.db.dropCollection.dropCollection(collectionName, function (err, result) {
+                            Picture.db.db.dropCollection(collectionName, function (err, result) {
                                 if (err) throw err;
                             });
                         });
